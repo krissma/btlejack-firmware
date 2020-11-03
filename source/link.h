@@ -71,7 +71,8 @@ typedef enum {
   */
   PACKET = 0x0D,
   DEBUG = 0x0E,
-  VERBOSE = 0x0F
+  VERBOSE = 0x0F,
+  SEND_TEST_PKT = 0x1F 
 } T_OPERATION, *PT_OPERATION;
 
 class Link
