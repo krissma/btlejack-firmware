@@ -6,6 +6,7 @@
 #include "radio.h"
 #include "timer.h"
 #include "filter.h"
+#include "mbed.h"
 
 /* New version of Btlejack */
 #define VERSION_MAJOR 0x01
@@ -28,6 +29,7 @@
 MicroBit uBit;
 static FilteringPolicy *policy;
 static Link *pLink;
+RawSerial pc(USBTX, USBRX);
 
 /**
  * BLE Sniffer action.
@@ -270,10 +272,6 @@ static void start_connection_follow()
 
 static void start_hijack()
 {
-  uBit.display.enable();
-  uBit.display.print("TEST");
-  printf("2");
-
   //pLink->verbose(B("JH"));
 
   /* Disable timers. */
@@ -480,9 +478,6 @@ extern "C" void RADIO_IRQHandler(void)
 
     case RECOVER_CRC:
     {
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       /* Extract crc and recover CRCInit */
       if (((rx_buffer[0] & 0xF3) == 1) && (rx_buffer[1] == 0))
       {
@@ -586,9 +581,6 @@ extern "C" void RADIO_IRQHandler(void)
 
     case RECOVER_HOPINTER:
     {
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       /* We expect a correct CRC for this packet. */
       if ((NRF_RADIO->CRCSTATUS == 1))
       {
@@ -646,9 +638,6 @@ extern "C" void RADIO_IRQHandler(void)
 
     case RECOVER_HOPINC:
     {
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       /* We expect a correct CRC for this packet. */
       if ((NRF_RADIO->CRCSTATUS == 1))
       {
@@ -701,9 +690,6 @@ extern "C" void RADIO_IRQHandler(void)
 
     case SNIFF_CONNECT_REQ:
     {
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       /* Sniff connection request for a given BD address */
       if ((NRF_RADIO->CRCSTATUS == 1))
       {
@@ -904,9 +890,6 @@ extern "C" void RADIO_IRQHandler(void)
     /* JAM_TX packet sent, reconfigure RADIO to listen. */
     case JAM_TX:
     {
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       //pLink->verbose(B("JTX"));
 
       /* Packet was sent, switch packet pointer back to rx_buffer */
@@ -927,9 +910,6 @@ extern "C" void RADIO_IRQHandler(void)
     /* HIJACK_TX packet sent, RADIO will automatically switch to RX. */
     case HIJACK_TX:
     {
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       //pLink->verbose(B("HTX"));
 
       /* Master->slave packet sent, switch from tx to rx. */
@@ -1015,10 +995,6 @@ extern "C" void RADIO_IRQHandler(void)
     case SNIFF_ADV:
 
     {
-
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       /* Sniff advertisements */
       /* We want to get all packets, including those when a CRC error occured. */
 
@@ -1048,10 +1024,6 @@ extern "C" void RADIO_IRQHandler(void)
     case JAM_ADV_RX:
 
     {
-
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       /* The pattern is matched, the radio will automatically switch to TX... */
       g_sniffer.action = JAM_ADV_TX;
       /* Disable shortcuts. */
@@ -1062,10 +1034,6 @@ extern "C" void RADIO_IRQHandler(void)
     break;
     case JAM_ADV_TX:
     {
-
-      uBit.display.enable();
-      uBit.display.print("TEST");
-      printf("2");
       g_sniffer.action = JAM_ADV_RX;
       /* notify to host. */
       pLink->verbose(B("ADV_JAMMED"));
@@ -2437,17 +2405,63 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   }
   break;
   case SEND_TEST_PKT:
-  {
+    /*
+    int i = 0;
+   // Prepare empty PDU.
+    for (int i; i < 7; i++)
+    {
+      tx_buffer[i] = 0x01;
+    }
+    // this serves as EOF symbol for read
+    tx_buffer[i + 1] = 0x11;
 
-    /*Prepare empty PDU.*/
+    // Switch packet pointer. TODO do I need this? 
+ // NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer; 
 
-    tx_buffer[0] = 0x01;
-    tx_buffer[1] = 0x00;
-
-    /*Send buffer.*/
-    radio_send_rx(tx_buffer, 2, 37);
+    //Send buffer.
+    radio_send_rx(tx_buffer, 8, 37);
+    // TODO: Do I need this to send the packet? Compare with SEND_PKT
+    pLink->sendPacket(SEND_TEST_PKT, tx_buffer, 0, 0); /*
   }
   break;
+  case RECEIVE_TEST_PKT:
+    /*TODO: Does this work? This was copied from ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, small changes to channel, set to 37 */
+
+    // copied from SEND_PKT
+    {
+      wait_ms(1000);
+      uBit.display.print("T");
+      wait_ms(1000);
+      uBit.display.clear();
+      if ((nSize >= 1) && (ubflags & PKT_COMMAND))
+      {
+        /* Bufferize packet. */
+        send_packet(payload, nSize);
+
+        /* Send ACK. */
+        pLink->sendPacket(SEND_TEST_PKT, NULL, 0, PKT_COMMAND | PKT_RESPONSE);
+      }
+      else
+        pLink->sendPacket(SEND_TEST_PKT, NULL, 0, 0);
+    }
+    break;
+
+    {
+      uint8_t status[] = {0x00};
+      if (nSize != 2) /* Error, size does not match. */
+      {
+        status[0] = 0x01;
+        pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
+      }
+      else
+      {
+        /* Enable advertisements sniffing on channel 37. */
+        sniff_adv(37);
+        /* Send ACK. */
+        pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
+      }
+    }
+    break;
 
   /* Other packets. */
   default:
@@ -2463,15 +2477,18 @@ int main()
   int nbSize;
   uint8_t flags;
 
-  /* Initalize Micro:Bit and serial link. */
+  pc.putc('b');
+  pc.printf("bla");
+  char buffer[100];
+  snprintf(buffer, 100, "The half of %d is %d", 60, 60 / 2);
 
+  /* Initalize Micro:Bit and serial link. */
 #ifdef YOTTA_CFG_TXPIN
 #ifdef YOTTA_CFG_RXPIN
 #pragma message("Btlejack firmware will use custom serial pins")
   uBit.serial.redirect(YOTTA_CFG_TXPIN, YOTTA_CFG_RXPIN);
 #endif
 #endif
-
   pLink = new Link(&uBit);
   policy = new FilteringPolicy(BLACKLIST);
   /* Init BLE timer. */
@@ -2482,10 +2499,24 @@ int main()
   /* Process serial inquiries. */
   while (1)
   {
+    // TODO could this be used for debugging?
+    //pLink->verbose(B("Recovering hop interval ..."));
     nbSize = 200;
+    /* wait_ms(1000);
+    uBit.display.print("a");
+    wait_ms(1000);
+    uBit.display.clear(); */
     if (pLink->readPacket(&op, packet, &nbSize, &flags))
     {
+      /* wait_ms(1000);
+      uBit.display.print("1");
+      wait_ms(1000);
+      uBit.display.clear(); */
       dispatchMessage(op, packet, nbSize, flags);
+      /* wait_ms(1000);
+      uBit.display.print("4");
+      wait_ms(1000);
+      uBit.display.clear(); */
     }
     __SEV();
     __WFE();
