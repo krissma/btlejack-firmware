@@ -1,5 +1,6 @@
 #include "helpers.h"
 #include "radio.h"
+#include "MicroBit.h"
 
 /**
  * channel_to_freq(int channel)
@@ -374,12 +375,87 @@ void radio_send_rx(uint8_t *pBuffer, int size, int channel)
 {
   int i;
 
+
   /* Copy data to TX buffer. */
   if (pBuffer != tx_buffer)
   {
     for (i=2; i<size; i++)
       tx_buffer[i] = pBuffer[i];
-  }
+  } 
+
+  /* No shorts on disable. */
+  NRF_RADIO->SHORTS = 0x0;
+
+  /* Switch radio to TX. */
+  radio_disable();
+
+  // Enable the High Frequency clock on the processor. This is a pre-requisite for
+  // the RADIO module. Without this clock, no communication is possible.
+  NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+  NRF_CLOCK->TASKS_HFCLKSTART = 1;
+  while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0);
+
+  /* Transmit with max power. */
+  NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
+
+  /* Listen on channel 6 (2046 => index 1 in BLE). */
+  NRF_RADIO->FREQUENCY = channel_to_freq(channel);
+  NRF_RADIO->DATAWHITEIV = channel;
+
+  /* Switch packet buffer to tx_buffer. */
+  NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer;
+
+  /* T_IFS set to 150us. */
+  NRF_RADIO->TIFS = 150;
+
+  NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
+  NVIC_ClearPendingIRQ(RADIO_IRQn);
+  NVIC_EnableIRQ(RADIO_IRQn);
+
+  /* Will enable START when ready, disable radio when packet is sent, then enable rx. */
+  NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk  | RADIO_SHORTS_DISABLED_RXEN_Msk;
+
+  NRF_RADIO->EVENTS_READY = 0;
+  NRF_RADIO->EVENTS_END = 0;
+  NRF_RADIO->TASKS_TXEN = 1;
+
+  /* From now, radio will send data and notify the result to Radio_IRQHandler */
+}
+
+void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
+{
+  int i;
+
+
+  /*wait_ms(1000);
+  uBit->display.print("1");
+  wait_ms(1000);
+  uBit->display.clear(); */
+
+
+  /* Copy data to TX buffer. */
+  if (pBuffer != tx_buffer)
+  {
+    
+    for (i=2; i<size; i++)
+      tx_buffer[i] = pBuffer[i];
+  }  
+
+  /*
+
+    char foo[2*size + 1];
+      foo[2*size] = 0;
+      for (int i = 0; i < size; i++) {
+        uint8_t x;
+        x = (tx_buffer[i] >> 4) & 0xf;
+        foo[2*i] = (x < 10) ? x + '0' : x - 10 + 'A';
+        x = tx_buffer[i] & 0xf;
+        foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
+      }
+
+  uBit->display.print(foo);
+  wait_ms(1000);
+  uBit->display.clear(); */
 
   /* No shorts on disable. */
   NRF_RADIO->SHORTS = 0x0;

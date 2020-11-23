@@ -76,6 +76,7 @@ typedef enum
   PACKET = 0x0D,
   DEBUG = 0x0E,
   VERBOSE = 0x0F,
+  // TODO: Find an appropriate OP-Code for SEND_TEST
   SEND_TEST_PKT = 0x1F,
   RECEIVE_TEST_PKT = 0x2F
 } T_OPERATION,

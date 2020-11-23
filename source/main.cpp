@@ -29,7 +29,7 @@
 MicroBit uBit;
 static FilteringPolicy *policy;
 static Link *pLink;
-RawSerial pc(USBTX, USBRX);
+//RawSerial pc(USBTX, USBRX);
 
 /**
  * BLE Sniffer action.
@@ -403,6 +403,7 @@ static void jam_adv()
 
 extern "C" void RADIO_IRQHandler(void)
 {
+  //uBit.display.print("1");
   uint32_t aa, crc_rev, crc;
   uint64_t inter, curtime;
   uint8_t candidate_pdu[2];
@@ -416,6 +417,13 @@ extern "C" void RADIO_IRQHandler(void)
 
   if (NRF_RADIO->EVENTS_END)
   {
+    /*int size = rx_buffer[1] + 2; 
+    if (size > 3 && rx_buffer[size-1] == 0xaa) {
+       uBit.display.print("1");
+       wait_ms(100); 
+       uBit.display.clear(); 
+    }*/
+
     NRF_RADIO->EVENTS_END = 0;
 
     switch (g_sniffer.action)
@@ -995,6 +1003,13 @@ extern "C" void RADIO_IRQHandler(void)
     case SNIFF_ADV:
 
     {
+      /*uBit.display.print("S");
+      wait_ms(100);
+      uBit.display.clear();*/
+      
+
+      
+
       /* Sniff advertisements */
       /* We want to get all packets, including those when a CRC error occured. */
 
@@ -1757,7 +1772,21 @@ static void send_packet(uint8_t *pPacket, int size)
     /* Copy packet into the tx_buffer. */
     for (i = 0; i < size; i++)
       packet[i] = pPacket[i];
+    
 
+    /*char foo[2*size + 1];
+    foo[2*size] = 0;
+    for (int i = 0; i < size; i++) {
+      uint8_t x;
+      x = (pPacket[i] >> 4) & 0xf;
+      foo[2*i] = (x < 10) ? x + '0' : x - 10 + 'A';
+      x = pPacket[i] & 0xf;
+      foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
+      }
+    uBit.display.print(foo);
+    wait_ms(1000);
+    uBit.display.clear(); 
+    */
     pLink->verbose(B("SP"));
 
     /* Tell the sniffer we need to send this packet. */
@@ -1821,6 +1850,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   uint32_t timeout;
   int i;
 
+  if (op == SEND_PKT && (ubflags & PKT_NOTIFICATION)) {
+    op = SEND_TEST_PKT; 
+  }
   switch (op)
   {
 
@@ -2032,6 +2064,8 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       case ADVERTISEMENTS_OPCODE_ENABLE_JAMMING:
         /* Experimental ! */
         {
+        
+          
           uint8_t status[] = {0x00};
           if ((nSize >= 5) && (ubflags & PKT_COMMAND))
           {
@@ -2355,6 +2389,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 
   case SEND_PKT:
   {
+      
     if ((nSize >= 1) && (ubflags & PKT_COMMAND) && g_sniffer.hijacked)
     {
       /* Bufferize packet. */
@@ -2405,44 +2440,74 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   }
   break;
   case SEND_TEST_PKT:
-    /*
-    int i = 0;
-   // Prepare empty PDU.
-    for (int i; i < 7; i++)
     {
-      tx_buffer[i] = 0x01;
-    }
-    // this serves as EOF symbol for read
-    tx_buffer[i + 1] = 0x11;
-
-    // Switch packet pointer. TODO do I need this? 
- // NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer; 
-
-    //Send buffer.
-    radio_send_rx(tx_buffer, 8, 37);
-    // TODO: Do I need this to send the packet? Compare with SEND_PKT
-    pLink->sendPacket(SEND_TEST_PKT, tx_buffer, 0, 0); /*
-  }
-  break;
-  case RECEIVE_TEST_PKT:
-    /*TODO: Does this work? This was copied from ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, small changes to channel, set to 37 */
-
-    // copied from SEND_PKT
-    {
-      wait_ms(1000);
-      uBit.display.print("T");
-      wait_ms(1000);
-      uBit.display.clear();
       if ((nSize >= 1) && (ubflags & PKT_COMMAND))
       {
-        /* Bufferize packet. */
-        send_packet(payload, nSize);
 
-        /* Send ACK. */
-        pLink->sendPacket(SEND_TEST_PKT, NULL, 0, PKT_COMMAND | PKT_RESPONSE);
+
+      /*uBit.display.print("1");
+      wait_ms(1000);
+      uBit.display.clear();*/
+
+      //send_packet(payload, nSize);
+
+      /*char foo[2*nSize + 1];
+      foo[2*nSize] = 0;
+      for (int i = 0; i < nSize; i++) {
+        uint8_t x;
+        x = (payload[i] >> 4) & 0xf;
+        foo[2*i] = (x < 10) ? x + '0' : x - 10 + 'A';
+        x = payload[i] & 0xf;
+        foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
+      }
+
+      uBit.display.print(foo);
+      wait_ms(1000);
+      uBit.display.clear();*/ 
+
+/*uint8_t checksum = 0xff;
+
+/* Fill header. */
+/*tx_buffer[0] = PREAMBLE;
+tx_buffer[1] = (SEND_PKT | ((ubflags&0x0F) << 4));
+tx_buffer[2] = (nSize & 0x00ff);
+tx_buffer[3] = (nSize >> 8);
+
+/* Compute checksum. */
+/*for (i=0; i<4; i++)
+checksum ^= tx_buffer[i];
+
+
+/* Compute checksum over payload. */
+/*for (i=0; i<nSize; i++)
+checksum ^= payload[i];
+
+/* Add payload */
+/*for (i=4; i < nSize+4; i++) {
+  tx_buffer[i] = payload[i]; 
+}
+
+tx_buffer[4+nSize] = checksum; 
+  */
+       
+
+      /*Prepare buffer*/
+      tx_buffer[0] = 0x0;
+      tx_buffer[1] = nSize - 2; //This should be the packet length
+      
+      /*uBit.display.print(nSize);
+      wait_ms(1000);
+      uBit.display.clear();
+        
+      /*Send packet*/
+    
+      radio_send_test_rx(payload, nSize, 37, &uBit); 
+      /* Send ACK. */
+      pLink->sendPacket(SEND_PKT, payload, nSize, PKT_COMMAND | PKT_RESPONSE);
+      //pLink->verbose(B("ftest"));
       }
       else
-        pLink->sendPacket(SEND_TEST_PKT, NULL, 0, 0);
+        pLink->sendPacket(SEND_PKT, NULL, 0, 0);
     }
     break;
 
@@ -2477,10 +2542,6 @@ int main()
   int nbSize;
   uint8_t flags;
 
-  pc.putc('b');
-  pc.printf("bla");
-  char buffer[100];
-  snprintf(buffer, 100, "The half of %d is %d", 60, 60 / 2);
 
   /* Initalize Micro:Bit and serial link. */
 #ifdef YOTTA_CFG_TXPIN
@@ -2493,30 +2554,25 @@ int main()
   policy = new FilteringPolicy(BLACKLIST);
   /* Init BLE timer. */
   timer_init();
+  /* uBit.init(); /*
 
   /* Reset radio and state. */
-
+   reset();
   /* Process serial inquiries. */
   while (1)
   {
-    // TODO could this be used for debugging?
-    //pLink->verbose(B("Recovering hop interval ..."));
     nbSize = 200;
-    /* wait_ms(1000);
-    uBit.display.print("a");
-    wait_ms(1000);
-    uBit.display.clear(); */
     if (pLink->readPacket(&op, packet, &nbSize, &flags))
     {
-      /* wait_ms(1000);
-      uBit.display.print("1");
+      // Achtung: Kein Hex!!!
+      /*if(op != 0xF) {
       wait_ms(1000);
-      uBit.display.clear(); */
+      uBit.display.print((uint8_t)op);
+      wait_ms(1000);
+      uBit.display.clear(); 
+      } */
       dispatchMessage(op, packet, nbSize, flags);
-      /* wait_ms(1000);
-      uBit.display.print("4");
-      wait_ms(1000);
-      uBit.display.clear(); */
+ 
     }
     __SEV();
     __WFE();

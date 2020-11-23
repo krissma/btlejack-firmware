@@ -21,5 +21,6 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit);
 void radio_set_channel_fast(int channel);
 void radio_send(uint8_t *pBuffer, int size);
 void radio_send_rx(uint8_t *pBuffer, int size, int channel);
+void radio_send_test_rx (uint8_t *pBuffer, int size, int channel, MicroBit *uBit); 
 void radio_receive(void);
 void radio_jam_advertisements(uint8_t *pattern,int size, int offset,int channel);
