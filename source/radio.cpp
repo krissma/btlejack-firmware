@@ -2,12 +2,13 @@
 #include "radio.h"
 #include "MicroBit.h"
 
+
 /**
  * channel_to_freq(int channel)
  *
  * Convert a BLE channel number into the corresponding frequency offset
- * for the nRF51822.
- **/
+ * for the nRF51822. This is the method for BLE. 
+ 
 
 uint8_t channel_to_freq(int channel)
 {
@@ -21,6 +22,20 @@ uint8_t channel_to_freq(int channel)
         return 2*(channel + 2);
     else
         return 2*(channel + 3);
+}
+ **/
+
+
+/**
+ * channel_to_freq(int channel)
+ *
+ * Convert a BT Classic channel number into the corresponding frequency offset
+ * for the nRF51822. This is the method for BT Classic. 
+ **/
+
+uint8_t channel_to_freq(int channel)
+{
+    return (channel + 2);
 }
 
 
@@ -67,8 +82,9 @@ void radio_set_sniff(int channel)
     /* Listen on channel 6 (2046 => index 1 in BLE). */
     NRF_RADIO->FREQUENCY = channel_to_freq(channel);
 
-    /* Set BLE data rate. */
-    NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
+    /* Set BLE data rate. */ //TODO: correct data rate?
+    /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+    NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
     NRF_RADIO->BASE0 = 0x00000000;
     NRF_RADIO->PREFIX0 = 0xAA; // preamble
@@ -128,7 +144,8 @@ void radio_sniff_aa(uint32_t accessAddress, int channel)
     NRF_RADIO->DATAWHITEIV = channel;
 
     /* Set BLE data rate. */
-    NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
+    /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+    NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
     /* Set default access address used on advertisement channels. */
     NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000)>>24;
@@ -186,7 +203,8 @@ void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit)
     NRF_RADIO->DATAWHITEIV = channel;
 
     /* Set BLE data rate. */
-    NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
+    /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+    NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
     /* Set default access address used on advertisement channels. */
     NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000)>>24;
@@ -260,7 +278,8 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
     NRF_RADIO->DATAWHITEIV = channel;
 
     /* Set BLE data rate. */
-    NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
+    /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+    NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
     /* Set default access address used on advertisement channels. */
     NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000)>>24;
@@ -304,6 +323,7 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
     NRF_RADIO->EVENTS_READY = 0;
     NRF_RADIO->EVENTS_END = 0;
     NRF_RADIO->TASKS_RXEN = 1;
+
 }
 
 void radio_set_channel_fast(int channel)
@@ -428,7 +448,7 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
 
 
   /*wait_ms(1000);
-  uBit->display.print("1");
+  uBit->display.print(channel);
   wait_ms(1000);
   uBit->display.clear(); */
 
@@ -441,9 +461,9 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
       tx_buffer[i] = pBuffer[i];
   }  
 
-  /*
+  
 
-    char foo[2*size + 1];
+   /* char foo[2*size + 1];
       foo[2*size] = 0;
       for (int i = 0; i < size; i++) {
         uint8_t x;
@@ -475,6 +495,10 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
   /* Listen on channel 6 (2046 => index 1 in BLE). */
   NRF_RADIO->FREQUENCY = channel_to_freq(channel);
   NRF_RADIO->DATAWHITEIV = channel;
+
+  /* Set BT Classic data rate. */
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
+  
 
   /* Switch packet buffer to tx_buffer. */
   NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer;
@@ -544,7 +568,8 @@ void radio_jam_advertisements(uint8_t *pattern,int size, int offset,int channel)
     NRF_RADIO->FREQUENCY = channel_to_freq(channel);
 
     /* Set BLE data rate. */
-    NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
+    /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+    NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
     /* Set default access address used on advertisement channels. */
     NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000)>>24;

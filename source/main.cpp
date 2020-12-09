@@ -97,7 +97,7 @@ typedef struct tSnifferState
 
   /* Channel map */
   uint8_t channels_mapped;
-  uint8_t chm[37];
+  uint8_t chm[78]; // changed for BT classic
   bool chm_provided;
   uint32_t max_interval;
   uint32_t last_measure;
@@ -430,6 +430,9 @@ extern "C" void RADIO_IRQHandler(void)
     {
     case SNIFF_AA:
     {
+      /*uBit.display.print("S"); 
+      wait_ms(1000); */
+
       g_sniffer.pkt_count++;
 
       /* Dewhiten bytes 4 and 5. */
@@ -474,7 +477,8 @@ extern "C" void RADIO_IRQHandler(void)
       }
       if (g_sniffer.pkt_count > 100)
       {
-        g_sniffer.channel = (g_sniffer.channel + 1) % 37;
+        // TODO: removed % 37 for BT Classic, should it stay this way?
+        g_sniffer.channel = (g_sniffer.channel + 1);
         radio_set_sniff(g_sniffer.channel);
         g_sniffer.pkt_count = 0;
       }
@@ -1003,12 +1007,7 @@ extern "C" void RADIO_IRQHandler(void)
     case SNIFF_ADV:
 
     {
-      /*uBit.display.print("S");
-      wait_ms(100);
-      uBit.display.clear();*/
-      
-
-      
+     
 
       /* Sniff advertisements */
       /* We want to get all packets, including those when a CRC error occured. */
@@ -1836,9 +1835,20 @@ static void sniff_adv(uint8_t adv_channel)
   /* Start advertisements sniffing. */
   g_sniffer.action = SNIFF_ADV;
   g_sniffer.channel = adv_channel;
-
+ 
+  /*uBit.display.print(adv_channel); 
+  wait_ms(1000); 
+  uBit.display.clear(); */
   /* Configure radio to receive packets on advertisement channels. */
   radio_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  // new code added for BT Classic
+  /*wait_ms(3000); 
+  if (adv_channel <= 86) {
+  sniff_adv(adv_channel + 1); 
+  } 
+  else {
+    sniff_adv(0); 
+  } */
 }
 
 void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflags)
@@ -1864,6 +1874,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   {
     /* Reset state. */
     reset();
+    /*pLink->verbose(B("Testing verbose"));
 
     /* Send command ACK. */
     pLink->sendPacket(RESET, NULL, 0, PKT_COMMAND | PKT_RESPONSE);
@@ -1980,6 +1991,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize != 2) /* Error, size does not match. */
         {
+      
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_RESET_POLICY, status, 1);
         }
@@ -2034,11 +2046,15 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize != 2) /* Error, size does not match. */
         {
+          /*uBit.display.print("1");
+          wait_ms(1000); */
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
         }
         else
         {
+          /*uBit.display.print("2");
+          wait_ms(1000); */
           /* Extract channel. */
           uint8_t channel = payload[1];
           /* Enable advertisements sniffing according to the provided channel. */
@@ -2500,6 +2516,8 @@ tx_buffer[4+nSize] = checksum;
       uBit.display.clear();
         
       /*Send packet*/
+
+     
     
       radio_send_test_rx(payload, nSize, 37, &uBit); 
       /* Send ACK. */
@@ -2555,6 +2573,7 @@ int main()
   /* Init BLE timer. */
   timer_init();
   /* uBit.init(); /*
+  
 
   /* Reset radio and state. */
    reset();
@@ -2564,6 +2583,8 @@ int main()
     nbSize = 200;
     if (pLink->readPacket(&op, packet, &nbSize, &flags))
     {
+      /*uBit.display.print(g_sniffer.channel);*/
+
       // Achtung: Kein Hex!!!
       /*if(op != 0xF) {
       wait_ms(1000);
