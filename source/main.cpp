@@ -289,14 +289,17 @@ static void start_hijack()
 	 *
 	 * Fine tune BLE deviation parameters.
 	 */
-  if ((NRF_FICR->OVERRIDEEN & FICR_OVERRIDEEN_BLE_1MBIT_Msk) == (FICR_OVERRIDEEN_BLE_1MBIT_Override
-                                                                 << FICR_OVERRIDEEN_BLE_1MBIT_Pos))
+  // changed from BLE_MBIT to NRF_1MBIT
+
+  if ((NRF_FICR->OVERRIDEEN & FICR_OVERRIDEEN_NRF_1MBIT_Msk) == (FICR_OVERRIDEEN_NRF_1MBIT_Override
+                                                                 << FICR_OVERRIDEEN_NRF_1MBIT_Pos))
   {
-    NRF_RADIO->OVERRIDE0 = NRF_FICR->BLE_1MBIT[0];
-    NRF_RADIO->OVERRIDE1 = NRF_FICR->BLE_1MBIT[1];
-    NRF_RADIO->OVERRIDE2 = NRF_FICR->BLE_1MBIT[2];
-    NRF_RADIO->OVERRIDE3 = NRF_FICR->BLE_1MBIT[3];
-    NRF_RADIO->OVERRIDE4 = NRF_FICR->BLE_1MBIT[4] | 0x80000000;
+    // changed from BLE_MBIT to NRF_1MBIT
+    NRF_RADIO->OVERRIDE0 = NRF_FICR->NRF_1MBIT[0];
+    NRF_RADIO->OVERRIDE1 = NRF_FICR->NRF_1MBIT[1];
+    NRF_RADIO->OVERRIDE2 = NRF_FICR->NRF_1MBIT[2];
+    NRF_RADIO->OVERRIDE3 = NRF_FICR->NRF_1MBIT[3];
+    NRF_RADIO->OVERRIDE4 = NRF_FICR->NRF_1MBIT[4] | 0x80000000;
   }
 
   /* Compute next channel. */
@@ -1007,7 +1010,6 @@ extern "C" void RADIO_IRQHandler(void)
     case SNIFF_ADV:
 
     {
-     
 
       /* Sniff advertisements */
       /* We want to get all packets, including those when a CRC error occured. */
@@ -1771,7 +1773,6 @@ static void send_packet(uint8_t *pPacket, int size)
     /* Copy packet into the tx_buffer. */
     for (i = 0; i < size; i++)
       packet[i] = pPacket[i];
-    
 
     /*char foo[2*size + 1];
     foo[2*size] = 0;
@@ -1835,7 +1836,7 @@ static void sniff_adv(uint8_t adv_channel)
   /* Start advertisements sniffing. */
   g_sniffer.action = SNIFF_ADV;
   g_sniffer.channel = adv_channel;
- 
+
   /*uBit.display.print(adv_channel); 
   wait_ms(1000); 
   uBit.display.clear(); */
@@ -1860,8 +1861,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   uint32_t timeout;
   int i;
 
-  if (op == SEND_PKT && (ubflags & PKT_NOTIFICATION)) {
-    op = SEND_TEST_PKT; 
+  if (op == SEND_PKT && (ubflags & PKT_NOTIFICATION))
+  {
+    op = SEND_TEST_PKT;
   }
   switch (op)
   {
@@ -1991,7 +1993,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize != 2) /* Error, size does not match. */
         {
-      
+
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_RESET_POLICY, status, 1);
         }
@@ -2080,8 +2082,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       case ADVERTISEMENTS_OPCODE_ENABLE_JAMMING:
         /* Experimental ! */
         {
-        
-          
+
           uint8_t status[] = {0x00};
           if ((nSize >= 5) && (ubflags & PKT_COMMAND))
           {
@@ -2405,7 +2406,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 
   case SEND_PKT:
   {
-      
+
     if ((nSize >= 1) && (ubflags & PKT_COMMAND) && g_sniffer.hijacked)
     {
       /* Bufferize packet. */
@@ -2456,10 +2457,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   }
   break;
   case SEND_TEST_PKT:
+  {
+    if ((nSize >= 1) && (ubflags & PKT_COMMAND))
     {
-      if ((nSize >= 1) && (ubflags & PKT_COMMAND))
-      {
-
 
       /*uBit.display.print("1");
       wait_ms(1000);
@@ -2479,55 +2479,52 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 
       uBit.display.print(foo);
       wait_ms(1000);
-      uBit.display.clear();*/ 
+      uBit.display.clear();*/
 
-/*uint8_t checksum = 0xff;
+      /*uint8_t checksum = 0xff;
 
 /* Fill header. */
-/*tx_buffer[0] = PREAMBLE;
+      /*tx_buffer[0] = PREAMBLE;
 tx_buffer[1] = (SEND_PKT | ((ubflags&0x0F) << 4));
 tx_buffer[2] = (nSize & 0x00ff);
 tx_buffer[3] = (nSize >> 8);
 
 /* Compute checksum. */
-/*for (i=0; i<4; i++)
+      /*for (i=0; i<4; i++)
 checksum ^= tx_buffer[i];
 
 
 /* Compute checksum over payload. */
-/*for (i=0; i<nSize; i++)
+      /*for (i=0; i<nSize; i++)
 checksum ^= payload[i];
 
 /* Add payload */
-/*for (i=4; i < nSize+4; i++) {
+      /*for (i=4; i < nSize+4; i++) {
   tx_buffer[i] = payload[i]; 
 }
 
 tx_buffer[4+nSize] = checksum; 
   */
-       
 
       /*Prepare buffer*/
       tx_buffer[0] = 0x0;
       tx_buffer[1] = nSize - 2; //This should be the packet length
-      
+
       /*uBit.display.print(nSize);
       wait_ms(1000);
       uBit.display.clear();
         
       /*Send packet*/
 
-     
-    
-      radio_send_test_rx(payload, nSize, 37, &uBit); 
+      radio_send_test_rx(payload, nSize, 37, &uBit);
       /* Send ACK. */
       pLink->sendPacket(SEND_PKT, payload, nSize, PKT_COMMAND | PKT_RESPONSE);
       //pLink->verbose(B("ftest"));
-      }
-      else
-        pLink->sendPacket(SEND_PKT, NULL, 0, 0);
     }
-    break;
+    else
+      pLink->sendPacket(SEND_PKT, NULL, 0, 0);
+  }
+  break;
 
     {
       uint8_t status[] = {0x00};
@@ -2560,7 +2557,6 @@ int main()
   int nbSize;
   uint8_t flags;
 
-
   /* Initalize Micro:Bit and serial link. */
 #ifdef YOTTA_CFG_TXPIN
 #ifdef YOTTA_CFG_RXPIN
@@ -2576,7 +2572,7 @@ int main()
   
 
   /* Reset radio and state. */
-   reset();
+  reset();
   /* Process serial inquiries. */
   while (1)
   {
@@ -2593,7 +2589,6 @@ int main()
       uBit.display.clear(); 
       } */
       dispatchMessage(op, packet, nbSize, flags);
- 
     }
     __SEV();
     __WFE();
