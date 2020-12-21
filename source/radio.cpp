@@ -85,6 +85,7 @@ void radio_set_sniff(int channel)
   NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
   NRF_RADIO->BASE0 = 0x00000000;
+
   NRF_RADIO->PREFIX0 = 0xAA; // preamble
 
   // LFLEN=0 bits, S0LEN=0, S1LEN=0
@@ -458,21 +459,59 @@ void radio_send_rx(uint8_t *pBuffer, int size, int channel)
   /* From now, radio will send data and notify the result to Radio_IRQHandler */
 }
 
-void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
+void radio_send_test(uint8_t *pBuffer, int size, MicroBit *uBit)
 {
   int i;
 
-  /*wait_ms(1000);
-  uBit->display.print(channel);
+  /*uBit->display.print(channel);
   wait_ms(1000);
-  uBit->display.clear(); */
+  uBit->display.clear();
 
   /* Copy data to TX buffer. */
   if (pBuffer != tx_buffer)
   {
-
-    for (i = 2; i < size; i++)
+    for (i = 0; i < size; i++)
       tx_buffer[i] = pBuffer[i];
+  }
+
+  /* Switch radio to TX. */
+  radio_disable();
+
+  // We disable CRC calculations
+  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+
+  /* Switch packet buffer to tx_buffer. */
+  NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer;
+
+  NVIC_ClearPendingIRQ(RADIO_IRQn);
+  NVIC_EnableIRQ(RADIO_IRQn);
+
+  /* Transmit with max power. */
+  NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
+
+  /* Will enable START when ready, and send END IRQ when sent. */
+  NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk /* | RADIO_SHORTS_END_DISABLE_Msk*/;
+
+  NRF_RADIO->EVENTS_READY = 0;
+  NRF_RADIO->EVENTS_END = 0;
+  NRF_RADIO->TASKS_TXEN = 1;
+
+  /* From now, radio will send data and notify the result to Radio_IRQHandler */
+}
+
+void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
+{
+  int i;
+
+  uBit->display.print(channel);
+  wait_ms(1000);
+  uBit->display.clear();
+
+  /* Copy data to TX buffer. */
+  if (pBuffer != tx_buffer)
+  {
+    for (i = 1; i < size; i++)
+      tx_buffer[i - 1] = pBuffer[i];
   }
 
   /* char foo[2*size + 1];
@@ -484,10 +523,16 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
         x = tx_buffer[i] & 0xf;
         foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
       }
+*/
 
-  uBit->display.print(foo);
+  /*ble_gap_addr_t *p_addr;
+  SD_BLE_GAP_ADDRESS_GET(*p_addr);
+  uBit->display.print(&p_addr);
   wait_ms(1000);
-  uBit->display.clear(); */
+  uBit->display.clear();
+  uBit->display.print(FICR->DEVICEADDR[1]);
+  wait_ms(1000);
+  uBit->display.clear();
 
   /* No shorts on disable. */
   NRF_RADIO->SHORTS = 0x0;
@@ -505,11 +550,16 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
   while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
     ;
 
+  NRF_RADIO->PCNF1 = 0x02030A0A;
+  // Setting the address
+  NRF_RADIO->BASE0 = 0xcfdf0b;
+  NRF_RADIO->PREFIX0 = 0x64;
+
   /* Transmit with max power. */
   NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
 
-  /* Listen on channel 6 (2046 => index 1 in BLE). Commenting this out for BT Classic
   NRF_RADIO->FREQUENCY = channel_to_freq(channel);
+  /* Listen on channel 6 (2046 => index 1 in BLE). Commenting this out for BT Classic
   NRF_RADIO->DATAWHITEIV = channel; 
 
   /* Set BT Classic data rate. */

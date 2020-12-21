@@ -2460,8 +2460,17 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   {
     if ((nSize >= 1) && (ubflags & PKT_COMMAND))
     {
+      /*
+      if (g_sniffer.channel == 87)
+      {
+        radio_set_channel_fast(0);
+      }
+      else
+      {
+        radio_set_channel_fast(1);
+      }*/
 
-      /*uBit.display.print("1");
+      /*uBit.display.print("A");
       wait_ms(1000);
       uBit.display.clear();*/
 
@@ -2506,9 +2515,9 @@ checksum ^= payload[i];
 tx_buffer[4+nSize] = checksum; 
   */
 
-      /*Prepare buffer*/
+      /*Prepare buffer
       tx_buffer[0] = 0x0;
-      tx_buffer[1] = nSize - 2; //This should be the packet length
+      tx_buffer[1] = nSize - 2; //This should be the packet length */
 
       /*uBit.display.print(nSize);
       wait_ms(1000);
@@ -2516,9 +2525,11 @@ tx_buffer[4+nSize] = checksum;
         
       /*Send packet*/
 
-      radio_send_test_rx(payload, nSize, 37, &uBit);
+      uint8_t channel = payload[0];
+
+      radio_send_test_rx(payload, nSize, channel, &uBit);
       /* Send ACK. */
-      pLink->sendPacket(SEND_PKT, payload, nSize, PKT_COMMAND | PKT_RESPONSE);
+      pLink->sendPacket(SEND_PKT, payload, nSize, PKT_RESPONSE);
       //pLink->verbose(B("ftest"));
     }
     else
@@ -2568,8 +2579,7 @@ int main()
   policy = new FilteringPolicy(BLACKLIST);
   /* Init BLE timer. */
   timer_init();
-  /* uBit.init(); /*
-  
+  //uBit.init();
 
   /* Reset radio and state. */
   reset();
@@ -2582,11 +2592,11 @@ int main()
       /*uBit.display.print(g_sniffer.channel);*/
 
       // Achtung: Kein Hex!!!
-      /*if(op != 0xF) {
-      wait_ms(1000);
-      uBit.display.print((uint8_t)op);
-      wait_ms(1000);
-      uBit.display.clear(); 
+      /*if (op != 0xF)
+      {
+        uBit.display.print((uint8_t)op);
+        wait_ms(1000);
+        uBit.display.clear();
       } */
       dispatchMessage(op, packet, nbSize, flags);
     }

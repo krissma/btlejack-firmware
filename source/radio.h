@@ -9,7 +9,7 @@
 
 #include "MicroBit.h"
 
-extern uint8_t rx_buffer[254];                     /* Rx buffer used by RF to store packets. */
+extern uint8_t rx_buffer[254]; /* Rx buffer used by RF to store packets. */
 extern uint8_t tx_buffer[254];
 
 void radio_disable(void);
@@ -20,7 +20,8 @@ void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit);
 void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit);
 void radio_set_channel_fast(int channel);
 void radio_send(uint8_t *pBuffer, int size);
+void radio_send_test(uint8_t *pBuffer, int size, MicroBit *uBit);
 void radio_send_rx(uint8_t *pBuffer, int size, int channel);
-void radio_send_test_rx (uint8_t *pBuffer, int size, int channel, MicroBit *uBit); 
+void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit);
 void radio_receive(void);
-void radio_jam_advertisements(uint8_t *pattern,int size, int offset,int channel);
+void radio_jam_advertisements(uint8_t *pattern, int size, int offset, int channel);
