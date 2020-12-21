@@ -503,7 +503,7 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
 {
   int i;
 
-  uBit->display.print(channel);
+  /*uBit->display.print(pBuffer[0]);
   wait_ms(1000);
   uBit->display.clear();
 
@@ -514,16 +514,20 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
       tx_buffer[i - 1] = pBuffer[i];
   }
 
-  /* char foo[2*size + 1];
-      foo[2*size] = 0;
-      for (int i = 0; i < size; i++) {
-        uint8_t x;
-        x = (tx_buffer[i] >> 4) & 0xf;
-        foo[2*i] = (x < 10) ? x + '0' : x - 10 + 'A';
-        x = tx_buffer[i] & 0xf;
-        foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
-      }
-*/
+  char foo[2 * size + 1];
+  foo[2 * size] = 0;
+  for (int i = 0; i < size; i++)
+  {
+    uint8_t x;
+    x = (tx_buffer[i] >> 4) & 0xf;
+    foo[2 * i] = (x < 10) ? x + '0' : x - 10 + 'A';
+    x = tx_buffer[i] & 0xf;
+    foo[2 * i + 1] = (x < 10) ? x + '0' : x - 10 + 'A';
+  }
+
+  /*uBit->display.print(foo);
+  wait_ms(1000);
+  uBit->display.clear();
 
   /*ble_gap_addr_t *p_addr;
   SD_BLE_GAP_ADDRESS_GET(*p_addr);
@@ -550,10 +554,11 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel, MicroBit *uBit)
   while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
     ;
 
-  NRF_RADIO->PCNF1 = 0x02030A0A;
+  /* NRF_RADIO->PCNF1 = 0x02030A0A;
   // Setting the address
   NRF_RADIO->BASE0 = 0xcfdf0b;
   NRF_RADIO->PREFIX0 = 0x64;
+  /*
 
   /* Transmit with max power. */
   NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
