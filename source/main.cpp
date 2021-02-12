@@ -6,6 +6,7 @@
 #include "radio.h"
 #include "timer.h"
 #include "filter.h"
+#include "mbed.h"
 
 /* New version of Btlejack */
 #define VERSION_MAJOR   0x01
@@ -28,6 +29,7 @@
 MicroBit uBit;
 static FilteringPolicy *policy;
 static Link *pLink;
+uint8_t packetSize = 46;
 
 /**
  * BLE Sniffer action.
@@ -388,7 +390,18 @@ static void jam_adv()
   /* Start advertisements reactive jamming. */
   g_sniffer.action = JAM_ADV_RX;
   /* Configure radio to jam packets on advertisement channels. */
-  radio_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+   if (g_sniffer.mode == 0x02)
+  {
+    radio_classic_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+  }
+  else if (g_sniffer.mode == 0x1) 
+  {
+    /* Configure radio to jam packets on advertisement channels. */
+    radio_jam_advertisements_le(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+  } else {
+     /* Configure radio to jam packets on advertisement channels. */
+    radio_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+  }
 }
 
 /**
@@ -997,19 +1010,21 @@ extern "C" void RADIO_IRQHandler(void)
 
 	      //if ((NRF_RADIO->CRCSTATUS == 1))
 	      //{
- 
-	        uint8_t crc_ok = ((NRF_RADIO->CRCSTATUS == 1) ? 0x01 : 0x00);
-		if (policy->match_rules(rx_buffer,(int)rx_buffer[1] + 2)) /* If the frame matches the policy ... */
-	          {
-			/* If policy is in whitelist mode, send the frame to host. */
-			if (policy->getMode() == WHITELIST)
-				pLink->notifyAdvertisementPacket(rx_buffer, (int)rx_buffer[1] + 2, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
-		  }
-		  else { /* If the frame doesn't match the policy ... */
-			/* If policy is in blacklist mode, send the frame to host. */
-			if (policy->getMode() == BLACKLIST)
-				pLink->notifyAdvertisementPacket(rx_buffer, (int)rx_buffer[1] + 2, g_sniffer.channel,crc_ok, NRF_RADIO->RSSISAMPLE);
-		  }
+
+         uint8_t crc_ok = ((NRF_RADIO->CRCSTATUS == 1) ? 0x01 : 0x00);
+      if (policy->match_rules(rx_buffer, packetSize)) /* If the frame matches the policy ... */
+      {
+        /* If policy is in whitelist mode, send the frame to host. */
+        if (policy->getMode() == WHITELIST)
+          pLink->notifyAdvertisementPacket(rx_buffer, packetSize, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
+      }
+      else
+      { /* If the frame doesn't match the policy ... */
+        /* If policy is in blacklist mode, send the frame to host. */
+        if (policy->getMode() == BLACKLIST)
+          pLink->notifyAdvertisementPacket(rx_buffer, packetSize, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
+      }
+
 		
 	      //}
 
@@ -1816,14 +1831,25 @@ void start_cchm(uint32_t accessAddress, uint32_t crcInit)
 
 }
 
-static void sniff_adv(uint8_t adv_channel)
+static void sniff_adv(uint8_t adv_channel, uint8_t mode)
 {
   /* Start advertisements sniffing. */
   g_sniffer.action = SNIFF_ADV;
   g_sniffer.channel = adv_channel;
 
-  /* Configure radio to receive packets on advertisement channels. */
+if (mode == 0x01)
+  {
+    /* Configure radio to receive packets on advertisement channels. */
+    radio_follow_conn_le(0x8E89BED6, adv_channel, 0x555555);
+  }
+  else if (mode == 0x02)
+  {
+    /* Configure radio to receive packets on advertisement channels. */
+    radio_classic_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  } else {
+    /* Configure radio to receive packets on advertisement channels. */
   radio_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  }
 }
 
 
@@ -1836,6 +1862,13 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   uint16_t hopInterval;
   uint32_t timeout;
   int i;
+
+   if (op == SEND_PKT && (ubflags & PKT_NOTIFICATION))
+  {
+    op = SEND_TEST_PKT;
+  }
+  switch (op)
+  {
 
   switch (op)
   {
@@ -1957,6 +1990,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
           /* Extract type. */
           uint8_t op_type = payload[0];
 
+          /* Extract mode */
+         uint8_t mode = payload[2];
+
           switch(op_type)
           {
 		/* Advertisements command : reset policy. */
@@ -2015,7 +2051,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 		case ADVERTISEMENTS_OPCODE_ENABLE_SNIFF:
 		{
 			uint8_t status[] = {0x00};
-			if (nSize != 2) /* Error, size does not match. */
+			if (nSize != 3) /* Error, size does not match. */
 			{
 			  status[0] = 0x01;
 	                  pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF,status,1);
@@ -2025,7 +2061,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 				/* Extract channel. */
 				uint8_t channel = payload[1];
 				/* Enable advertisements sniffing according to the provided channel. */
-				sniff_adv(channel);
+				sniff_adv(channel, mode);
 				/* Send ACK. */
 		                pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF,status,1);
 			}
@@ -2048,7 +2084,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 		{
 			uint8_t status[] = {0x00};
 			if ((nSize >= 5) && (ubflags & PKT_COMMAND)) {
-				if (payload[1] == 0x00) {
+				if (payload[1] == 0x00 && payload[2] != 0x02) {
 					/* 
 					Channel hopping mode (enabled by channel = 0)
 					The jammer will switch to the next advertising channel every time a frame is jammed.
@@ -2063,14 +2099,15 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 					*/
 					g_sniffer.adv_channel_hopping = false;
 					g_sniffer.channel = payload[1];
+          g_sniffer.mode = payload[2];
 				}
 				/* Extract offset of the pattern in the LL frame. */
 				g_sniffer.offset = payload[2];
 				/* Extract pattern size. */
-				g_sniffer.adv_pattern_size = payload[3];
+				g_sniffer.adv_pattern_size = payload[4];
 				/* Extract pattern. */
 				for (int i=0;i<g_sniffer.adv_pattern_size;i++) {
-					g_sniffer.adv_pattern[i] = payload[4 + i];
+					g_sniffer.adv_pattern[i] = payload[5 + i];
 				}
 				/* Send ACK. */
 	                	pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_JAMMING,status,1);
@@ -2373,6 +2410,33 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
           pLink->sendPacket(SEND_PKT, NULL, 0, 0);
       }
       break;
+   case SEND_TEST_PKT:
+  {
+    if ((nSize >= 1) && (ubflags & PKT_COMMAND))
+    {
+       send_packet(payload, nSize); 
+     
+      /*Send packet*/
+
+      if (payload[0] == 0x01)
+      {
+        radio_send_test_rx(payload, nSize, payload[1]);
+        /* Send ACK. */
+        pLink->sendPacket(SEND_PKT, 0, nSize, PKT_RESPONSE);
+        //pLink->verbose(B("ftest"));
+      }
+      else
+      {
+        radio_classic_send_test_rx(payload, nSize, payload[1]);
+        /* Send ACK. */
+        pLink->sendPacket(SEND_PKT, 0, nSize, PKT_RESPONSE);
+        //pLink->verbose(B("ftest"));
+      }
+    }
+    else
+      pLink->sendPacket(SEND_PKT, NULL, 0, 0);
+  }
+  break;
 
     case COLLAB_CHM:
       {
@@ -2438,6 +2502,8 @@ int main() {
     policy = new FilteringPolicy(BLACKLIST);
     /* Init BLE timer. */
     timer_init();
+    /* uBit.init(); */
+    radio_init_ubit(&uBit);
 
     /* Reset radio and state. */
     reset();
