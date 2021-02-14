@@ -84,6 +84,7 @@ typedef struct tSnifferState {
     uint32_t observed_interval;
     uint16_t pkt_count;
     uint8_t channel;
+    uint8_t mode; 
 
     /* Connection request sync. */
     uint8_t bd_address[6];
@@ -387,18 +388,30 @@ int seen_aa(uint32_t aa)
 
 static void jam_adv()
 {
+  uBit.display.print("B");
+          wait_ms(1000);
+          uBit.display.clear(); 
   /* Start advertisements reactive jamming. */
   g_sniffer.action = JAM_ADV_RX;
   /* Configure radio to jam packets on advertisement channels. */
    if (g_sniffer.mode == 0x02)
   {
+       uBit.display.print("1");
+          wait_ms(1000);
+          uBit.display.clear(); 
     radio_classic_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
   }
   else if (g_sniffer.mode == 0x1) 
   {
+    uBit.display.print("2");
+          wait_ms(1000);
+          uBit.display.clear(); 
     /* Configure radio to jam packets on advertisement channels. */
     radio_jam_advertisements_le(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
   } else {
+    uBit.display.print("3");
+          wait_ms(1000);
+          uBit.display.clear(); 
      /* Configure radio to jam packets on advertisement channels. */
     radio_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
   }
@@ -1867,8 +1880,6 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   {
     op = SEND_TEST_PKT;
   }
-  switch (op)
-  {
 
   switch (op)
   {
@@ -2091,6 +2102,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 					*/
 					g_sniffer.adv_channel_hopping = true; 
 					g_sniffer.channel = 37;
+      
 				}
 				else {
 					/* 
@@ -2102,7 +2114,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
           g_sniffer.mode = payload[2];
 				}
 				/* Extract offset of the pattern in the LL frame. */
-				g_sniffer.offset = payload[2];
+				g_sniffer.offset = payload[3];
 				/* Extract pattern size. */
 				g_sniffer.adv_pattern_size = payload[4];
 				/* Extract pattern. */
@@ -2112,6 +2124,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 				/* Send ACK. */
 	                	pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_JAMMING,status,1);
 				/* Enable reactive jamming. */
+        uBit.display.print("C");
+        wait_ms(1000);
+        uBit.display.clear(); 
 				jam_adv();
 			}        
 			else {
@@ -2437,7 +2452,6 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       pLink->sendPacket(SEND_PKT, NULL, 0, 0);
   }
   break;
-
     case COLLAB_CHM:
       {
         if ((nSize == 9) && (ubflags & PKT_COMMAND))
@@ -2523,3 +2537,4 @@ int main() {
     /* Done, release fiber. */
     release_fiber();
 }
+

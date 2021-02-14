@@ -104,6 +104,9 @@ void radio_set_sniff(int channel)
     NRF_RADIO->CRCINIT = 0xFFFF;
     NRF_RADIO->CRCPOLY = 0x11021;
 
+    // We disable CRC calculations
+    NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+
     // set receive buffer
     NRF_RADIO->PACKETPTR = (uint32_t)rx_buffer;
 
@@ -162,6 +165,9 @@ void radio_sniff_aa(uint32_t accessAddress, int channel)
     NRF_RADIO->PCNF0 = 0x00000000;
     // STATLEN=10, MAXLEN=10, BALEN=3, ENDIAN=0 (little), WHITEEN=0
     NRF_RADIO->PCNF1 = 0x02030A0A;
+
+     // We disable CRC calculations
+    NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
 
     // Disable CRC
     NRF_RADIO->CRCCNF = 0x0;
@@ -266,6 +272,7 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
 {
     /* We reconfigure the radio to use our new parameters. */
     radio_disable();
+
 
     // Enable the High Frequency clock on the processor. This is a pre-requisite for
     // the RADIO module. Without this clock, no communication is possible.
@@ -372,7 +379,7 @@ void radio_follow_conn_le(uint32_t accessAddress, int channel, uint32_t crcInit)
   );
 
   /* We enable CRC check. */
-  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos) |
+  /*NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos) |
                       (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos); /* Skip Address when computing CRC */
   NRF_RADIO->CRCINIT = crcInit;                                                  /* Initial value of CRC */
   NRF_RADIO->CRCPOLY = 0x00065B;                                                 /* CRC polynomial function */
@@ -399,12 +406,12 @@ void radio_follow_conn_le(uint32_t accessAddress, int channel, uint32_t crcInit)
 void radio_classic_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
 {
 
-  /*uBit3->display.print(channel);
-  wait_ms(1000);
-  uBit3->display.clear();*/
-
   /* We reconfigure the radio to use our new parameters. */
   radio_disable(); 
+
+  uBit_debug->display.print("A");
+  wait_ms(1000);
+  uBit_debug->display.clear();
 
   accessAddress = 0xFFAC123D;
 
@@ -909,7 +916,12 @@ void radio_jam_advertisements_le(uint8_t *pattern, int size, int offset, int cha
 void radio_classic_jam_advertisements(uint8_t *pattern, int size, int offset, int channel)
 {
 
-  uint32_t accessAddress = 0xFFAC123D;
+  /*uBit_debug->display.print("J");
+  wait_ms(1000);
+  uBit_debug->display.clear();*/
+
+  uint32_t accessAddress = (pattern[offset] << 24 | (pattern[offset + 1] << 16) | (pattern[offset + 2] << 8) | (pattern[offset + 3]));
+
 
   /* We reconfigure the radio to use our new parameters. */
   radio_disable();
