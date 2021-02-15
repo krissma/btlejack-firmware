@@ -100,7 +100,7 @@ typedef struct tSnifferState
 
   /* Channel map */
   uint8_t channels_mapped;
-  uint8_t chm[37];
+  uint8_t chm[78]; // changed for BT classic
   bool chm_provided;
   uint32_t max_interval;
   uint32_t last_measure;
@@ -292,14 +292,17 @@ static void start_hijack()
 	 *
 	 * Fine tune BLE deviation parameters.
 	 */
-  if ((NRF_FICR->OVERRIDEEN & FICR_OVERRIDEEN_BLE_1MBIT_Msk) == (FICR_OVERRIDEEN_BLE_1MBIT_Override
-                                                                 << FICR_OVERRIDEEN_BLE_1MBIT_Pos))
+  // changed from BLE_MBIT to NRF_1MBIT
+
+  if ((NRF_FICR->OVERRIDEEN & FICR_OVERRIDEEN_NRF_1MBIT_Msk) == (FICR_OVERRIDEEN_NRF_1MBIT_Override
+                                                                 << FICR_OVERRIDEEN_NRF_1MBIT_Pos))
   {
-    NRF_RADIO->OVERRIDE0 = NRF_FICR->BLE_1MBIT[0];
-    NRF_RADIO->OVERRIDE1 = NRF_FICR->BLE_1MBIT[1];
-    NRF_RADIO->OVERRIDE2 = NRF_FICR->BLE_1MBIT[2];
-    NRF_RADIO->OVERRIDE3 = NRF_FICR->BLE_1MBIT[3];
-    NRF_RADIO->OVERRIDE4 = NRF_FICR->BLE_1MBIT[4] | 0x80000000;
+    // changed from BLE_MBIT to NRF_1MBIT
+    NRF_RADIO->OVERRIDE0 = NRF_FICR->NRF_1MBIT[0];
+    NRF_RADIO->OVERRIDE1 = NRF_FICR->NRF_1MBIT[1];
+    NRF_RADIO->OVERRIDE2 = NRF_FICR->NRF_1MBIT[2];
+    NRF_RADIO->OVERRIDE3 = NRF_FICR->NRF_1MBIT[3];
+    NRF_RADIO->OVERRIDE4 = NRF_FICR->NRF_1MBIT[4] | 0x80000000;
   }
 
   /* Compute next channel. */
@@ -447,6 +450,9 @@ extern "C" void RADIO_IRQHandler(void)
     {
     case SNIFF_AA:
     {
+      /*uBit.display.print("S"); 
+      wait_ms(1000); */
+
       g_sniffer.pkt_count++;
 
       /* Dewhiten bytes 4 and 5. */
@@ -491,7 +497,8 @@ extern "C" void RADIO_IRQHandler(void)
       }
       if (g_sniffer.pkt_count > 100)
       {
-        g_sniffer.channel = (g_sniffer.channel + 1) % 37;
+        // TODO: removed % 37 for BT Classic, should it stay this way?
+        g_sniffer.channel = (g_sniffer.channel + 1);
         radio_set_sniff(g_sniffer.channel);
         g_sniffer.pkt_count = 0;
       }
@@ -1030,9 +1037,12 @@ extern "C" void RADIO_IRQHandler(void)
     case SNIFF_ADV:
 
     {
+<<<<<<< HEAD
       /*uBit.display.print("S");
       wait_ms(100);
       uBit.display.clear();
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
       /* Sniff advertisements */
       /* We want to get all packets, including those when a CRC error occured. */
@@ -1865,6 +1875,7 @@ static void sniff_adv(uint8_t adv_channel, uint8_t mode)
   g_sniffer.action = SNIFF_ADV;
   g_sniffer.channel = adv_channel;
 
+<<<<<<< HEAD
   if (mode == 0x01 || mode == 0x00)
   {
     /* Configure radio to receive packets on advertisement channels. */
@@ -1875,6 +1886,21 @@ static void sniff_adv(uint8_t adv_channel, uint8_t mode)
     /* Configure radio to receive packets on advertisement channels. */
     radio_classic_follow_conn(0x8E89BED6, adv_channel, 0x555555);
   }
+=======
+  /*uBit.display.print(adv_channel); 
+  wait_ms(1000); 
+  uBit.display.clear(); */
+  /* Configure radio to receive packets on advertisement channels. */
+  radio_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  // new code added for BT Classic
+  /*wait_ms(3000); 
+  if (adv_channel <= 86) {
+  sniff_adv(adv_channel + 1); 
+  } 
+  else {
+    sniff_adv(0); 
+  } */
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 }
 
 void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflags)
@@ -1901,6 +1927,7 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   {
     /* Reset state. */
     reset();
+    /*pLink->verbose(B("Testing verbose"));
 
     /* Send command ACK. */
     pLink->sendPacket(RESET, NULL, 0, PKT_COMMAND | PKT_RESPONSE);
@@ -2020,9 +2047,13 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize != 2) /* Error, size does not match. */
         {
+<<<<<<< HEAD
           /*uBit.display.print("A");
           wait_ms(1000);
           uBit.display.clear(); */
+=======
+
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_RESET_POLICY, status, 1);
         }
@@ -2096,18 +2127,28 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize != 3) /* Error, size does not match. */
         {
+<<<<<<< HEAD
           /*uBit.display.print("H");
           wait_ms(1000);
           uBit.display.clear();*/
+=======
+          /*uBit.display.print("1");
+          wait_ms(1000); */
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
         }
         else
         {
+<<<<<<< HEAD
           /*uBit.display.print("I");
           wait_ms(1000);
           uBit.display.clear();*/
 
+=======
+          /*uBit.display.print("2");
+          wait_ms(1000); */
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
           /* Extract channel. */
           uint8_t channel = payload[1];
           /* Enable advertisements sniffing according to the provided channel. */
@@ -2464,6 +2505,10 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 
   case SEND_PKT:
   {
+<<<<<<< HEAD
+=======
+
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
     if ((nSize >= 1) && (ubflags & PKT_COMMAND) && g_sniffer.hijacked)
     {
       /* Bufferize packet. */
@@ -2542,15 +2587,27 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       /*uint8_t checksum = 0xff;
 
 /* Fill header. */
+<<<<<<< HEAD
       /* tx_buffer[0] = PREAMBLE;
       tx_buffer[1] = (SEND_PKT | ((ubflags & 0x0F) << 4));
       tx_buffer[2] = (nSize & 0x00ff);
       tx_buffer[3] = (nSize >> 8);
+=======
+      /*tx_buffer[0] = PREAMBLE;
+tx_buffer[1] = (SEND_PKT | ((ubflags&0x0F) << 4));
+tx_buffer[2] = (nSize & 0x00ff);
+tx_buffer[3] = (nSize >> 8);
+
+/* Compute checksum. */
+      /*for (i=0; i<4; i++)
+checksum ^= tx_buffer[i];
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
       /* Compute checksum. */
       /*for (i = 0; i < 4; i++)
         checksum ^= tx_buffer[i];
 
+<<<<<<< HEAD
       /* Compute checksum over payload. */
       /*for (i = 0; i < nSize; i++)
         checksum ^= payload[i];
@@ -2563,6 +2620,19 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 
       tx_buffer[4 + nSize] = checksum;
       
+=======
+/* Compute checksum over payload. */
+      /*for (i=0; i<nSize; i++)
+checksum ^= payload[i];
+
+/* Add payload */
+      /*for (i=4; i < nSize+4; i++) {
+  tx_buffer[i] = payload[i]; 
+}
+
+tx_buffer[4+nSize] = checksum; 
+  */
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
           /*Prepare buffer*/
       /*tx_buffer[0] = 0x0;
@@ -2573,6 +2643,19 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       uBit.display.clear();
         
       /*Send packet*/
+<<<<<<< HEAD
+=======
+
+      radio_send_test_rx(payload, nSize, 37, &uBit);
+      /* Send ACK. */
+      pLink->sendPacket(SEND_PKT, payload, nSize, PKT_COMMAND | PKT_RESPONSE);
+      //pLink->verbose(B("ftest"));
+    }
+    else
+      pLink->sendPacket(SEND_PKT, NULL, 0, 0);
+  }
+  break;
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
       if (payload[0] == 0x01)
       {
@@ -2619,8 +2702,13 @@ int main()
   policy = new FilteringPolicy(BLACKLIST);
   /* Init BLE timer. */
   timer_init();
+<<<<<<< HEAD
   /* uBit.init(); */
   radio_init_ubit(&uBit);
+=======
+  /* uBit.init(); /*
+  
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
   /* Reset radio and state. */
   reset();
@@ -2630,6 +2718,8 @@ int main()
     nbSize = 200;
     if (pLink->readPacket(&op, packet, &nbSize, &flags))
     {
+      /*uBit.display.print(g_sniffer.channel);*/
+
       // Achtung: Kein Hex!!!
       if (op != 0xF)
       {

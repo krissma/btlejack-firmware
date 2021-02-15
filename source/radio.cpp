@@ -6,8 +6,8 @@
  * channel_to_freq(int channel)
  *
  * Convert a BLE channel number into the corresponding frequency offset
- * for the nRF51822.
- **/
+ * for the nRF51822. This is the method for BLE. 
+ 
 
 MicroBit *uBit3;
 unsigned long stalen = 46;
@@ -45,8 +45,20 @@ uint8_t channel_to_freq(int channel)
   else
     return 2 * (channel + 3);
 }
+ **/
 
+<<<<<<< HEAD
 uint8_t channel_to_freq_classic(int channel)
+=======
+/**
+ * channel_to_freq(int channel)
+ *
+ * Convert a BT Classic channel number into the corresponding frequency offset
+ * for the nRF51822. This is the method for BT Classic. 
+ **/
+
+uint8_t channel_to_freq(int channel)
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 {
   return (channel + 2);
 }
@@ -78,6 +90,7 @@ void radio_disable(void)
 void radio_set_sniff(int channel)
 {
   radio_disable();
+<<<<<<< HEAD
 
   // Enable the High Frequency clock on the processor. This is a pre-requisite for
   // the RADIO module. Without this clock, no communication is possible.
@@ -122,6 +135,53 @@ void radio_set_sniff(int channel)
   NVIC_ClearPendingIRQ(RADIO_IRQn);
   NVIC_EnableIRQ(RADIO_IRQn);
 
+=======
+
+  // Enable the High Frequency clock on the processor. This is a pre-requisite for
+  // the RADIO module. Without this clock, no communication is possible.
+  NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+  NRF_CLOCK->TASKS_HFCLKSTART = 1;
+  while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
+    ;
+
+  // power should be one of: -30, -20, -16, -12, -8, -4, 0, 4
+  NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_0dBm << RADIO_TXPOWER_TXPOWER_Pos);
+
+  NRF_RADIO->TXADDRESS = 0;
+  NRF_RADIO->RXADDRESSES = 1;
+
+  /* Listen on channel 6 (2046 => index 1 in BLE). */
+  NRF_RADIO->FREQUENCY = channel_to_freq(channel);
+
+  /* Set BLE data rate. */ //TODO: correct data rate?
+  /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
+
+  NRF_RADIO->BASE0 = 0x00000000;
+  NRF_RADIO->PREFIX0 = 0xAA; // preamble
+
+  // LFLEN=0 bits, S0LEN=0, S1LEN=0
+  NRF_RADIO->PCNF0 = 0x00000000;
+  // STATLEN=10, MAXLEN=10, BALEN=1, ENDIAN=0 (little), WHITEEN=0
+  NRF_RADIO->PCNF1 = 0x00010A0A;
+
+  // Disable CRC
+  NRF_RADIO->CRCCNF = 0x0;
+  NRF_RADIO->CRCINIT = 0xFFFF;
+  NRF_RADIO->CRCPOLY = 0x11021;
+
+  // We disable CRC calculations
+  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+
+  // set receive buffer
+  NRF_RADIO->PACKETPTR = (uint32_t)rx_buffer;
+
+  // configure interrupts
+  NRF_RADIO->INTENSET = 0x00000008;
+  NVIC_ClearPendingIRQ(RADIO_IRQn);
+  NVIC_EnableIRQ(RADIO_IRQn);
+
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   /* Enable RSSI measurement. */
   NRF_RADIO->SHORTS |= RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
   //NRF_RADIO->SHORTS = 0;
@@ -144,6 +204,7 @@ void radio_set_sniff(int channel)
 
 void radio_sniff_aa(uint32_t accessAddress, int channel)
 {
+<<<<<<< HEAD
   uBit3->display.print("S");
   wait_ms(1000);
   uBit3->display.clear();
@@ -204,18 +265,8 @@ void radio_sniff_aa(uint32_t accessAddress, int channel)
   while (NRF_RADIO->EVENTS_READY == 0)
     ;
 
-  NRF_RADIO->EVENTS_END = 0;
-  NRF_RADIO->TASKS_START = 1;
-}
-
-void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit)
-{
-  /* We reconfigure the radio to use our new parameters. */
+=======
   radio_disable();
-
-  uBit3->display.print("F");
-  wait_ms(1000);
-  uBit3->display.clear();
 
   // Enable the High Frequency clock on the processor. This is a pre-requisite for
   // the RADIO module. Without this clock, no communication is possible.
@@ -232,7 +283,84 @@ void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit)
   NRF_RADIO->DATAWHITEIV = channel;
 
   /* Set BLE data rate. */
+  /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
+
+  /* Set default access address used on advertisement channels. */
+  NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000) >> 24;
+  NRF_RADIO->BASE0 = (accessAddress & 0x00ffffff) << 8;
+
+  NRF_RADIO->TXADDRESS = 0;   // transmit on logical address 0
+  NRF_RADIO->RXADDRESSES = 1; // a bit mask, listen only to logical address 0
+
+  // LFLEN=0 bits, S0LEN=0, S1LEN=0
+  NRF_RADIO->PCNF0 = 0x00000000;
+  // STATLEN=10, MAXLEN=10, BALEN=3, ENDIAN=0 (little), WHITEEN=0
+  NRF_RADIO->PCNF1 = 0x02030A0A;
+
+  // Disable CRC
+  NRF_RADIO->CRCCNF = 0x0;
+  NRF_RADIO->CRCINIT = 0xFFFF;
+  NRF_RADIO->CRCPOLY = 0x11021;
+
+  // We disable CRC calculations
+  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+
+  // set receive buffer
+  NRF_RADIO->PACKETPTR = (uint32_t)rx_buffer;
+
+  // configure interrupts
+  NRF_RADIO->INTENSET = 0x00000008;
+  NVIC_ClearPendingIRQ(RADIO_IRQn);
+  NVIC_EnableIRQ(RADIO_IRQn);
+
+  //NRF_RADIO->SHORTS |= RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
+  NRF_RADIO->SHORTS = 0;
+
+  // enable receiver
+  NRF_RADIO->EVENTS_READY = 0;
+  NRF_RADIO->TASKS_RXEN = 1;
+  while (NRF_RADIO->EVENTS_READY == 0)
+    ;
+
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
+  NRF_RADIO->EVENTS_END = 0;
+  NRF_RADIO->TASKS_START = 1;
+}
+
+void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit)
+{
+  /* We reconfigure the radio to use our new parameters. */
+  radio_disable();
+
+<<<<<<< HEAD
+  uBit3->display.print("F");
+  wait_ms(1000);
+  uBit3->display.clear();
+
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
+  // Enable the High Frequency clock on the processor. This is a pre-requisite for
+  // the RADIO module. Without this clock, no communication is possible.
+  NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+  NRF_CLOCK->TASKS_HFCLKSTART = 1;
+  while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
+    ;
+
+  // power should be one of: -30, -20, -16, -12, -8, -4, 0, 4
+  NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_0dBm << RADIO_TXPOWER_TXPOWER_Pos);
+
+  /* Listen on channel 6 (2046 => index 1 in BLE). */
+  NRF_RADIO->FREQUENCY = channel_to_freq(channel);
+  NRF_RADIO->DATAWHITEIV = channel;
+
+  /* Set BLE data rate. */
+<<<<<<< HEAD
   NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
+=======
+  /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
   /* Set default access address used on advertisement channels. */
   NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000) >> 24;
@@ -251,6 +379,7 @@ void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit)
                       (((0UL) << RADIO_PCNF1_STATLEN_Pos) & RADIO_PCNF1_STATLEN_Msk) |                     /* Expand the payload with N bytes in addition to LENGTH [0-255] */
                       (((3UL) << RADIO_PCNF1_BALEN_Pos) & RADIO_PCNF1_BALEN_Msk) |                         /* Base address length in number of bytes. */
                       (((RADIO_PCNF1_ENDIAN_Little) << RADIO_PCNF1_ENDIAN_Pos) & RADIO_PCNF1_ENDIAN_Msk) | /* Endianess of the S0, LENGTH, S1 and PAYLOAD fields. */
+<<<<<<< HEAD
                       (((1UL) << RADIO_PCNF1_WHITEEN_Pos) & RADIO_PCNF1_WHITEEN_Msk)                       /* Enable packet whitening */
   );
 
@@ -261,6 +390,19 @@ void radio_follow_aa(uint32_t accessAddress, int channel, uint32_t crcInit)
   NRF_RADIO->CRCPOLY = 0x00065B;                                                 /* CRC polynomial function */
 
   // We disable CRC calculations for FHS packet test
+=======
+                      // disabled this for BT Classic, war vorher (((1UL)
+                      (((0UL) << RADIO_PCNF1_WHITEEN_Pos) & RADIO_PCNF1_WHITEEN_Msk) /* Enable packet whitening */
+  );
+
+  /* We enable CRC check. */
+  /*NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos) |
+                      (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos); /* Skip Address when computing CRC */
+  /*NRF_RADIO->CRCINIT = crcInit;                                                  /* Initial value of CRC */
+  /*NRF_RADIO->CRCPOLY = 0x00065B;                                                 /* CRC polynomial function */
+
+  // We disable CRC calculations for BT Classic
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
 
   // set receive buffer
@@ -294,6 +436,7 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
   /* We reconfigure the radio to use our new parameters. */
   radio_disable();
 
+<<<<<<< HEAD
   /*uint8_t pattern[] = {0xff, 0xac, 0x12, 0x3d};
 
   uBit3->display.print(channel);
@@ -310,6 +453,8 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
   /*accessAddress = 0x45e72a;
   /*accessAddress = 0x094d6f74;*/
 
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   // Enable the High Frequency clock on the processor. This is a pre-requisite for
   // the RADIO module. Without this clock, no communication is possible.
   NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
@@ -320,15 +465,19 @@ void radio_follow_conn(uint32_t accessAddress, int channel, uint32_t crcInit)
   // power should be one of: -30, -20, -16, -12, -8, -4, 0, 4
   NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_0dBm << RADIO_TXPOWER_TXPOWER_Pos);
 
+<<<<<<< HEAD
   /* Set default access address used on advertisement channels. */
   NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000) >> 24;
   NRF_RADIO->BASE0 = (accessAddress & 0x00ffffff) << 8;
 
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   /* Listen on channel 6 (2046 => index 1 in BLE). */
   NRF_RADIO->FREQUENCY = channel_to_freq(channel);
   NRF_RADIO->DATAWHITEIV = channel;
 
   /* Set BLE data rate. */
+<<<<<<< HEAD
   NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
 
   NRF_RADIO->TXADDRESS = 0;   // transmit on logical address 0
@@ -417,6 +566,9 @@ void radio_classic_follow_conn(uint32_t accessAddress, int channel, uint32_t crc
   NRF_RADIO->DATAWHITEIV = channel;
 
   /* Set BLE data rate. */
+=======
+  /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
   /* Set default access address used on advertisement channels. */
@@ -426,6 +578,7 @@ void radio_classic_follow_conn(uint32_t accessAddress, int channel, uint32_t crc
   NRF_RADIO->TXADDRESS = 0;   // transmit on logical address 0
   NRF_RADIO->RXADDRESSES = 1; // a bit mask, listen only to logical address 0
 
+<<<<<<< HEAD
   NRF_RADIO->PCNF0 = ((((0UL) << RADIO_PCNF0_S0LEN_Pos) & RADIO_PCNF0_S0LEN_Msk) | /* Length of S0 field in bytes 0-1.    */
                       (((0UL) << RADIO_PCNF0_S1LEN_Pos) & RADIO_PCNF0_S1LEN_Msk) | /* Length of S1 field in bits 0-8.     */
                       (((0UL) << RADIO_PCNF0_LFLEN_Pos) & RADIO_PCNF0_LFLEN_Msk)   /* Length of length field in bits 0-8. */
@@ -452,6 +605,29 @@ void radio_classic_follow_conn(uint32_t accessAddress, int channel, uint32_t crc
   NRF_RADIO->CRCPOLY = 0x00065B; /* CRC polynomial function */
 
   // We disable CRC calculations for FHS packet test
+=======
+  NRF_RADIO->PCNF0 = ((((1UL) << RADIO_PCNF0_S0LEN_Pos) & RADIO_PCNF0_S0LEN_Msk) | /* Length of S0 field in bytes 0-1.    */
+                      (((0UL) << RADIO_PCNF0_S1LEN_Pos) & RADIO_PCNF0_S1LEN_Msk) | /* Length of S1 field in bits 0-8.     */
+                      (((8UL) << RADIO_PCNF0_LFLEN_Pos) & RADIO_PCNF0_LFLEN_Msk)   /* Length of length field in bits 0-8. */
+  );
+
+  /* Packet configuration */
+  NRF_RADIO->PCNF1 = ((((250UL) << RADIO_PCNF1_MAXLEN_Pos) & RADIO_PCNF1_MAXLEN_Msk) |                     /* Maximum length of payload in bytes [0-255] */
+                      (((0UL) << RADIO_PCNF1_STATLEN_Pos) & RADIO_PCNF1_STATLEN_Msk) |                     /* Expand the payload with N bytes in addition to LENGTH [0-255] */
+                      (((3UL) << RADIO_PCNF1_BALEN_Pos) & RADIO_PCNF1_BALEN_Msk) |                         /* Base address length in number of bytes. */
+                      (((RADIO_PCNF1_ENDIAN_Little) << RADIO_PCNF1_ENDIAN_Pos) & RADIO_PCNF1_ENDIAN_Msk) | /* Endianess of the S0, LENGTH, S1 and PAYLOAD fields. */
+                      // disabled this for BT Classic (enabled with 1UL)
+                      (((0UL) << RADIO_PCNF1_WHITEEN_Pos) & RADIO_PCNF1_WHITEEN_Msk) /* Enable packet whitening */
+  );
+
+  /* We enable CRC check. */
+  /* NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos) |
+                      (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos); /* Skip Address when computing CRC */
+  /* NRF_RADIO->CRCINIT = crcInit;                                                  /* Initial value of CRC */
+  /* NRF_RADIO->CRCPOLY = 0x00065B;                                                 /* CRC polynomial function */
+
+  // We disable CRC calculations
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
 
   // set receive buffer
@@ -516,6 +692,9 @@ void radio_send(uint8_t *pBuffer, int size)
   /* Switch radio to TX. */
   radio_disable();
 
+  // We disable CRC calculations
+  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+
   /* Switch packet buffer to tx_buffer. */
   NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer;
 
@@ -543,10 +722,13 @@ void radio_send_rx(uint8_t *pBuffer, int size, int channel)
 {
   int i;
 
+<<<<<<< HEAD
   uBit3->display.print("S");
   wait_ms(1000);
   uBit3->display.clear();
 
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   /* Copy data to TX buffer. */
   if (pBuffer != tx_buffer)
   {
@@ -570,7 +752,7 @@ void radio_send_rx(uint8_t *pBuffer, int size, int channel)
   /* Transmit with max power. */
   NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
 
-  /* Listen on channel 6 (2046 => index 1 in BLE). */
+  /* Listen on channel 6 (2046 => index 1 in BLE).*/
   NRF_RADIO->FREQUENCY = channel_to_freq(channel);
   NRF_RADIO->DATAWHITEIV = channel;
 
@@ -598,10 +780,16 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel)
 {
   int i;
 
+<<<<<<< HEAD
   /*uBit3->display.print(channel);
+=======
+  /*wait_ms(1000);
+  uBit->display.print(channel);
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   wait_ms(1000);
   uBit3->display.clear();
 
+<<<<<<< HEAD
   /*uint32_t accessAddress = 0x8E89BED6;*/
 
   uint32_t accessAddress = 0xFFAC123D;
@@ -616,10 +804,17 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel)
 
   /* for (i = 0; i < size; i++)
     tx_buffer[i] = 0xAA;
+=======
+  /* Copy data to TX buffer. */
+  if (pBuffer != tx_buffer)
+  {
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
-  /*
+    for (i = 2; i < size; i++)
+      tx_buffer[i] = pBuffer[i];
+  }
 
-    char foo[2*size + 1];
+  /* char foo[2*size + 1];
       foo[2*size] = 0;
       for (int i = 0; i < size; i++) {
         uint8_t x;
@@ -639,12 +834,17 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel)
   /* Switch radio to TX. */
   radio_disable();
 
+<<<<<<< HEAD
   /* Set default access address used on advertisement channels. */
   NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000) >> 24;
   NRF_RADIO->BASE0 = (accessAddress & 0x00ffffff) << 8;
 
   // We disable CRC calculations for FHS packet test
   //NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+=======
+  // We disable CRC calculations
+  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
   // Enable the High Frequency clock on the processor. This is a pre-requisite for
   // the RADIO module. Without this clock, no communication is possible.
@@ -652,6 +852,7 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel)
   NRF_CLOCK->TASKS_HFCLKSTART = 1;
   while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
     ;
+<<<<<<< HEAD
 
   NRF_RADIO->PCNF0 = ((((0UL) << RADIO_PCNF0_S0LEN_Pos) & RADIO_PCNF0_S0LEN_Msk) | /* Length of S0 field in bytes 0-1.    */
                       (((0UL) << RADIO_PCNF0_S1LEN_Pos) & RADIO_PCNF0_S1LEN_Msk) | /* Length of S1 field in bits 0-8.     */
@@ -665,22 +866,31 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel)
                       (((RADIO_PCNF1_ENDIAN_Little) << RADIO_PCNF1_ENDIAN_Pos) & RADIO_PCNF1_ENDIAN_Msk) | /* Endianess of the S0, LENGTH, S1 and PAYLOAD fields. */
                       (((0UL) << RADIO_PCNF1_WHITEEN_Pos) & RADIO_PCNF1_WHITEEN_Msk)                       /* Enable packet whitening */
   );
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 
   /* Transmit with max power. */
   NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
 
+<<<<<<< HEAD
   /* changed to lower power, TODO change back. 
   NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Neg30dBm << RADIO_TXPOWER_TXPOWER_Pos); */
 
   /* Listen on channel 6 (2046 => index 1 in BLE). */
+=======
+  /* Listen on channel 6 (2046 => index 1 in BLE). Commenting this out for BT Classic
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   NRF_RADIO->FREQUENCY = channel_to_freq(channel);
-  NRF_RADIO->DATAWHITEIV = channel;
+  NRF_RADIO->DATAWHITEIV = channel; 
+
+  /* Set BT Classic data rate. */
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
 
   /* Switch packet buffer to tx_buffer. */
   NRF_RADIO->PACKETPTR = (uint32_t)tx_buffer;
 
-  /* T_IFS set to 150us. */
-  NRF_RADIO->TIFS = 150;
+  /* T_IFS changed from previous 150us to 557 for BT Classic. */
+  NRF_RADIO->TIFS = 557;
 
   NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
   NVIC_ClearPendingIRQ(RADIO_IRQn);
@@ -696,6 +906,7 @@ void radio_send_test_rx(uint8_t *pBuffer, int size, int channel)
   /* From now, radio will send data and notify the result to Radio_IRQHandler */
 }
 
+<<<<<<< HEAD
 void radio_classic_send_test_rx(uint8_t *pBuffer, int size, int channel)
 {
   int i;
@@ -808,6 +1019,8 @@ void radio_classic_send_test_rx(uint8_t *pBuffer, int size, int channel)
   /* From now, radio will send data and notify the result to Radio_IRQHandler */
 }
 
+=======
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
 /**
  * radio_anchor_receive()
  *
@@ -833,6 +1046,7 @@ void radio_anchor_receive(void)
 }
 
 void radio_jam_advertisements(uint8_t *pattern, int size, int offset, int channel)
+<<<<<<< HEAD
 {
 
   /*uint32_t accessAddress = (pattern[offset] << 24 | (pattern[offset + 1] << 16) | (pattern[offset + 2] << 8) | (pattern[offset + 3]));
@@ -994,6 +1208,70 @@ void radio_classic_jam_advertisements(uint8_t *pattern, int size, int offset, in
   /* Will enable START when ready, disable when packet received, and txen when disabled. */
   NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
 
+=======
+{
+  /* We generate a whitened pattern in order to use it as a preamble for the frames to jam. */
+  uint32_t accessAddress = whiten_pattern(pattern, size, offset, channel);
+
+  /* We reconfigure the radio to use our new parameters. */
+  radio_disable();
+
+  // Enable the High Frequency clock on the processor. This is a pre-requisite for
+  // the RADIO module. Without this clock, no communication is possible.
+  NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+  NRF_CLOCK->TASKS_HFCLKSTART = 1;
+  while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
+    ;
+
+  // power should be one of: -30, -20, -16, -12, -8, -4, 0, 4
+  NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_Pos4dBm << RADIO_TXPOWER_TXPOWER_Pos);
+
+  /* Listen on channel 6 (2046 =index 1 in BLE). */
+  NRF_RADIO->FREQUENCY = channel_to_freq(channel);
+
+  /* Set BLE data rate. */
+  /*NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);*/
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_1Mbit << RADIO_MODE_MODE_Pos);
+
+  /* Set default access address used on advertisement channels. */
+  NRF_RADIO->PREFIX0 = (accessAddress & 0xff000000) >> 24;
+  NRF_RADIO->BASE0 = (accessAddress & 0x00ffffff) << 8;
+
+  NRF_RADIO->TXADDRESS = 0;   // transmit on logical address 0
+  NRF_RADIO->RXADDRESSES = 1; // a bit mask, listen only to logical address 0
+
+  NRF_RADIO->PCNF0 = ((((0UL) << RADIO_PCNF0_S0LEN_Pos) & RADIO_PCNF0_S0LEN_Msk) | /* S0    */
+                      (((0UL) << RADIO_PCNF0_S1LEN_Pos) & RADIO_PCNF0_S1LEN_Msk) | /* S1    */
+                      (((0UL) << RADIO_PCNF0_LFLEN_Pos) & RADIO_PCNF0_LFLEN_Msk)   /* Length  */
+  );                                                                               /* Everything is set to 0 to go as fast as possible. */
+
+  NRF_RADIO->PCNF1 = ((((0UL) << RADIO_PCNF1_MAXLEN_Pos) & RADIO_PCNF1_MAXLEN_Msk) |                       /* Max payload length. */
+                      (((0UL) << RADIO_PCNF1_STATLEN_Pos) & RADIO_PCNF1_STATLEN_Msk) |                     /* Expansion of payload length  */
+                      (((3UL) << RADIO_PCNF1_BALEN_Pos) & RADIO_PCNF1_BALEN_Msk) |                         /* Base address length */
+                      (((RADIO_PCNF1_ENDIAN_Little) << RADIO_PCNF1_ENDIAN_Pos) & RADIO_PCNF1_ENDIAN_Msk) | /* Endianess */
+                      // disabled this for BT Classic
+                      (((0UL) << RADIO_PCNF1_WHITEEN_Pos) & RADIO_PCNF1_WHITEEN_Msk) /* Whitening */
+  );
+
+  /* We disable CRC check. */
+  NRF_RADIO->CRCCNF = 0;
+
+  // We disable CRC calculations
+  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Disabled << RADIO_CRCCNF_LEN_Pos);
+
+  // set receive buffer
+  NRF_RADIO->PACKETPTR = (uint32_t)rx_buffer;
+
+  // configure interrupts
+  NRF_RADIO->INTENSET = 0x00000008;
+
+  //NVIC_ClearPendingIRQ(RADIO_IRQn);
+  NVIC_EnableIRQ(RADIO_IRQn);
+
+  /* Will enable START when ready, disable when packet received, and txen when disabled. */
+  NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+
+>>>>>>> b67bb3476d4fdc23817a254023bd5e7b73d6c217
   // enable receiver (once enabled, it will listen)
   NRF_RADIO->EVENTS_READY = 0;
   NRF_RADIO->EVENTS_END = 0;
