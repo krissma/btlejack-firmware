@@ -341,8 +341,6 @@ void radio_follow_conn_le(uint8_t *pattern, int channel, uint32_t crcInit)
   /* We reconfigure the radio to use our new parameters. */
   radio_disable();
 
-  accessAddress = 0xFFAC123D;
-
   // Enable the High Frequency clock on the processor. This is a pre-requisite for
   // the RADIO module. Without this clock, no communication is possible.
   NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
@@ -411,10 +409,6 @@ void radio_classic_follow_conn(uint8_t *pattern, int channel, uint32_t crcInit)
 
   /* We reconfigure the radio to use our new parameters. */
   radio_disable();
-
-  uBit_debug->display.print("A");
-  wait_ms(1000);
-  uBit_debug->display.clear();
 
   // Enable the High Frequency clock on the processor. This is a pre-requisite for
   // the RADIO module. Without this clock, no communication is possible.
@@ -604,6 +598,10 @@ void radio_send_test_rx(uint8_t *pattern, uint8_t pattern_size, uint8_t *pBuffer
 {
   int i;
 
+  uBit_debug->display.print("A");
+  wait_ms(1000);
+  uBit_debug->display.clear();
+
   uint32_t accessAddress = (pattern[0] << 24 | (pattern[1] << 16) | (pattern[2] << 8) | (pattern[3]));
 
   /* Copy data to TX buffer.  */
@@ -634,6 +632,9 @@ void radio_send_test_rx(uint8_t *pattern, uint8_t pattern_size, uint8_t *pBuffer
   NRF_CLOCK->TASKS_HFCLKSTART = 1;
   while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
     ;
+
+  /* Set BT Classic data rate. */
+  NRF_RADIO->MODE = (RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos);
 
   NRF_RADIO->PCNF0 = ((((0UL) << RADIO_PCNF0_S0LEN_Pos) & RADIO_PCNF0_S0LEN_Msk) | /* Length of S0 field in bytes 0-1.    */
                       (((0UL) << RADIO_PCNF0_S1LEN_Pos) & RADIO_PCNF0_S1LEN_Msk) | /* Length of S1 field in bits 0-8.     */
