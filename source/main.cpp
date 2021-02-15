@@ -29,6 +29,8 @@
 MicroBit uBit;
 static FilteringPolicy *policy;
 static Link *pLink;
+uint8_t packetSize = 46;
+
 //RawSerial pc(USBTX, USBRX);
 
 /**
@@ -86,6 +88,7 @@ typedef struct tSnifferState
   uint32_t observed_interval;
   uint16_t pkt_count;
   uint8_t channel;
+  uint8_t mode;
 
   /* Connection request sync. */
   uint8_t bd_address[6];
@@ -389,10 +392,24 @@ int seen_aa(uint32_t aa)
 
 static void jam_adv()
 {
+  /*uBit.display.print("A");
+  wait_ms(1000);
+  uBit.display.clear();
+
   /* Start advertisements reactive jamming. */
   g_sniffer.action = JAM_ADV_RX;
-  /* Configure radio to jam packets on advertisement channels. */
-  radio_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+  /*uBit.display.print(g_sniffer.adv_pattern);
+  wait_ms(1000);
+  uBit.display.clear();*/
+  if (g_sniffer.mode == 0x02)
+  {
+    radio_classic_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+  }
+  else
+  {
+    /* Configure radio to jam packets on advertisement channels. */
+    radio_jam_advertisements(g_sniffer.adv_pattern, g_sniffer.adv_pattern_size, g_sniffer.offset, g_sniffer.channel);
+  }
 }
 
 /**
@@ -698,9 +715,16 @@ extern "C" void RADIO_IRQHandler(void)
 
     case SNIFF_CONNECT_REQ:
     {
+      /*uBit.display.print("1");
+      wait_ms(1000);
+      uBit.display.clear();
       /* Sniff connection request for a given BD address */
+      // uncommented for testing, TODO change back
       if ((NRF_RADIO->CRCSTATUS == 1))
       {
+        /*uBit.display.print("2");
+        wait_ms(1000);
+        uBit.display.clear();
         /**
                 * Sniff CONN_REQ packet structure is the following:
                 *
@@ -935,6 +959,9 @@ extern "C" void RADIO_IRQHandler(void)
     /* HIJACK_RX received packet, continue to listen (default). */
     case HIJACK_RX:
     {
+      uBit.display.print("B");
+      wait_ms(1000);
+      uBit.display.clear();
       uint8_t sn, nesn, md;
 
       if ((NRF_RADIO->CRCSTATUS == 1))
@@ -1005,29 +1032,26 @@ extern "C" void RADIO_IRQHandler(void)
     {
       /*uBit.display.print("S");
       wait_ms(100);
-      uBit.display.clear();*/
-      
-
-      
+      uBit.display.clear();
 
       /* Sniff advertisements */
       /* We want to get all packets, including those when a CRC error occured. */
-
+      // TODO uncomment this again
       //if ((NRF_RADIO->CRCSTATUS == 1))
       //{
 
       uint8_t crc_ok = ((NRF_RADIO->CRCSTATUS == 1) ? 0x01 : 0x00);
-      if (policy->match_rules(rx_buffer, (int)rx_buffer[1] + 2)) /* If the frame matches the policy ... */
+      if (policy->match_rules(rx_buffer, packetSize)) /* If the frame matches the policy ... */
       {
         /* If policy is in whitelist mode, send the frame to host. */
         if (policy->getMode() == WHITELIST)
-          pLink->notifyAdvertisementPacket(rx_buffer, (int)rx_buffer[1] + 2, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
+          pLink->notifyAdvertisementPacket(rx_buffer, packetSize, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
       }
       else
       { /* If the frame doesn't match the policy ... */
         /* If policy is in blacklist mode, send the frame to host. */
         if (policy->getMode() == BLACKLIST)
-          pLink->notifyAdvertisementPacket(rx_buffer, (int)rx_buffer[1] + 2, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
+          pLink->notifyAdvertisementPacket(rx_buffer, packetSize, g_sniffer.channel, crc_ok, NRF_RADIO->RSSISAMPLE);
       }
 
       //}
@@ -1493,7 +1517,9 @@ static void set_timer_for_next_anchor(uint16_t interval)
 static void hijack_prepare_packet(void)
 {
   int i = 0;
-
+  uBit.display.print("H");
+  wait_ms(1000);
+  uBit.display.clear();
   /* Do we have a packet to send ? */
   if (g_sniffer.send_pkt)
   {
@@ -1552,7 +1578,9 @@ static void hijack_hop_channel(void)
   g_sniffer.conn_evt_pkt_counter = 0;
 
   hijack_prepare_packet();
-
+  uBit.display.print("V");
+  wait_ms(1000);
+  uBit.display.clear();
   /* Mark packet as sent if required. */
   if (g_sniffer.send_pkt && !g_sniffer.pkt_sent)
     g_sniffer.pkt_sent = true;
@@ -1772,21 +1800,21 @@ static void send_packet(uint8_t *pPacket, int size)
     /* Copy packet into the tx_buffer. */
     for (i = 0; i < size; i++)
       packet[i] = pPacket[i];
-    
 
-    /*char foo[2*size + 1];
-    foo[2*size] = 0;
-    for (int i = 0; i < size; i++) {
+    /*char foo[2 * size + 1];
+    foo[2 * size] = 0;
+    for (int i = 0; i < size; i++)
+    {
       uint8_t x;
       x = (pPacket[i] >> 4) & 0xf;
-      foo[2*i] = (x < 10) ? x + '0' : x - 10 + 'A';
+      foo[2 * i] = (x < 10) ? x + '0' : x - 10 + 'A';
       x = pPacket[i] & 0xf;
-      foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
-      }
+      foo[2 * i + 1] = (x < 10) ? x + '0' : x - 10 + 'A';
+    }
     uBit.display.print(foo);
     wait_ms(1000);
-    uBit.display.clear(); 
-    */
+    uBit.display.clear(); */
+
     pLink->verbose(B("SP"));
 
     /* Tell the sniffer we need to send this packet. */
@@ -1831,14 +1859,22 @@ void start_cchm(uint32_t accessAddress, uint32_t crcInit)
   g_sniffer.ticker.attach_us(cchm_tick, /*(unsigned int)g_sniffer.max_interval * 1250*/ g_sniffer.cchm_timeout * 1000);
 }
 
-static void sniff_adv(uint8_t adv_channel)
+static void sniff_adv(uint8_t adv_channel, uint8_t mode)
 {
   /* Start advertisements sniffing. */
   g_sniffer.action = SNIFF_ADV;
   g_sniffer.channel = adv_channel;
 
-  /* Configure radio to receive packets on advertisement channels. */
-  radio_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  if (mode == 0x01 || mode == 0x00)
+  {
+    /* Configure radio to receive packets on advertisement channels. */
+    radio_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  }
+  else
+  {
+    /* Configure radio to receive packets on advertisement channels. */
+    radio_classic_follow_conn(0x8E89BED6, adv_channel, 0x555555);
+  }
 }
 
 void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflags)
@@ -1850,8 +1886,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   uint32_t timeout;
   int i;
 
-  if (op == SEND_PKT && (ubflags & PKT_NOTIFICATION)) {
-    op = SEND_TEST_PKT; 
+  if (op == SEND_PKT && (ubflags & PKT_NOTIFICATION))
+  {
+    op = SEND_TEST_PKT;
   }
   switch (op)
   {
@@ -1972,6 +2009,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       /* Extract type. */
       uint8_t op_type = payload[0];
 
+      /* Extract mode */
+      uint8_t mode = payload[2];
+
       switch (op_type)
       {
       /* Advertisements command : reset policy. */
@@ -1980,11 +2020,17 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize != 2) /* Error, size does not match. */
         {
+          /*uBit.display.print("A");
+          wait_ms(1000);
+          uBit.display.clear(); */
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_RESET_POLICY, status, 1);
         }
         else
         {
+          /*uBit.display.print("B");
+          wait_ms(1000);
+          uBit.display.clear();
           /* Extract policy type. */
           uint8_t policy_type = payload[1];
           /* Reset policy according to the provided type. */
@@ -1996,6 +2042,9 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       break;
       case ADVERTISEMENTS_OPCODE_GET_POLICY:
       {
+        /*uBit.display.print("C");
+        wait_ms(1000);
+        uBit.display.clear();
         /* Update policy buffer. */
         policy->update_buffer();
         /* Send Response. */
@@ -2007,20 +2056,32 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
         uint8_t status[] = {0x00};
         if (nSize < 5) /* Error, size doesn't match. */
         {
+          /*uBit.display.print("D");
+          wait_ms(1000);
+          uBit.display.clear();*/
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ADD_RULE, status, 1);
         }
         else
         {
+          /*uBit.display.print("E");
+          wait_ms(1000);
+          uBit.display.clear();
           /* Extract size. */
           uint8_t size = payload[1];
           if (nSize != 1 + 1 + 2 * size + 1)
           { /* Error, size doesn't match. */
+            /*uBit.display.print("F");
+            wait_ms(1000);
+            uBit.display.clear();*/
             status[0] = 0x01;
             pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ADD_RULE, status, 1);
           }
           else
           { /* Size ok.*/
+            /*uBit.display.print("G");
+            wait_ms(1000);
+            uBit.display.clear();
             /* Add rule to the current policy. */
             policy->add_rule(size, payload + 2, payload + 2 + size, payload[2 + 2 * size]);
             /* Send ACK. */
@@ -2031,18 +2092,26 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       break;
       case ADVERTISEMENTS_OPCODE_ENABLE_SNIFF:
       {
+
         uint8_t status[] = {0x00};
-        if (nSize != 2) /* Error, size does not match. */
+        if (nSize != 3) /* Error, size does not match. */
         {
+          /*uBit.display.print("H");
+          wait_ms(1000);
+          uBit.display.clear();*/
           status[0] = 0x01;
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
         }
         else
         {
+          /*uBit.display.print("I");
+          wait_ms(1000);
+          uBit.display.clear();*/
+
           /* Extract channel. */
           uint8_t channel = payload[1];
           /* Enable advertisements sniffing according to the provided channel. */
-          sniff_adv(channel);
+          sniff_adv(channel, mode);
           /* Send ACK. */
           pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
         }
@@ -2050,9 +2119,15 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       break;
       case ADVERTISEMENTS_OPCODE_DISABLE_SNIFF:
       {
+        /*uBit.display.print("J");
+        wait_ms(1000);
+        uBit.display.clear();*/
         uint8_t status[] = {0x01};
         if (g_sniffer.action == SNIFF_ADV)
         {
+          /*uBit.display.print("K");
+          wait_ms(1000);
+          uBit.display.clear();
           /* Disable radio. */
           radio_disable();
           status[0] = 0x00;
@@ -2064,12 +2139,11 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
       case ADVERTISEMENTS_OPCODE_ENABLE_JAMMING:
         /* Experimental ! */
         {
-        
-          
+
           uint8_t status[] = {0x00};
           if ((nSize >= 5) && (ubflags & PKT_COMMAND))
           {
-            if (payload[1] == 0x00)
+            if (payload[1] == 0x00 && payload[2] != 0x02)
             {
               /* 
 					Channel hopping mode (enabled by channel = 0)
@@ -2086,15 +2160,16 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 					*/
               g_sniffer.adv_channel_hopping = false;
               g_sniffer.channel = payload[1];
+              g_sniffer.mode = payload[2];
             }
             /* Extract offset of the pattern in the LL frame. */
-            g_sniffer.offset = payload[2];
+            g_sniffer.offset = payload[3];
             /* Extract pattern size. */
-            g_sniffer.adv_pattern_size = payload[3];
+            g_sniffer.adv_pattern_size = payload[4];
             /* Extract pattern. */
             for (int i = 0; i < g_sniffer.adv_pattern_size; i++)
             {
-              g_sniffer.adv_pattern[i] = payload[4 + i];
+              g_sniffer.adv_pattern[i] = payload[5 + i];
             }
             /* Send ACK. */
             pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_JAMMING, status, 1);
@@ -2389,7 +2464,6 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
 
   case SEND_PKT:
   {
-      
     if ((nSize >= 1) && (ubflags & PKT_COMMAND) && g_sniffer.hijacked)
     {
       /* Bufferize packet. */
@@ -2440,93 +2514,85 @@ void dispatchMessage(T_OPERATION op, uint8_t *payload, int nSize, uint8_t ubflag
   }
   break;
   case SEND_TEST_PKT:
+  {
+    if ((nSize >= 1) && (ubflags & PKT_COMMAND))
     {
-      if ((nSize >= 1) && (ubflags & PKT_COMMAND))
-      {
-
 
       /*uBit.display.print("1");
       wait_ms(1000);
       uBit.display.clear();*/
 
-      //send_packet(payload, nSize);
+      send_packet(payload, nSize);
 
-      /*char foo[2*nSize + 1];
-      foo[2*nSize] = 0;
-      for (int i = 0; i < nSize; i++) {
+      /*char foo[2 * nSize + 1];
+      foo[2 * nSize] = 0;
+      for (int i = 0; i < nSize; i++)
+      {
         uint8_t x;
         x = (payload[i] >> 4) & 0xf;
-        foo[2*i] = (x < 10) ? x + '0' : x - 10 + 'A';
+        foo[2 * i] = (x < 10) ? x + '0' : x - 10 + 'A';
         x = payload[i] & 0xf;
-        foo[2*i+1] = (x < 10) ? x + '0' : x - 10 + 'A';
+        foo[2 * i + 1] = (x < 10) ? x + '0' : x - 10 + 'A';
       }
 
       uBit.display.print(foo);
       wait_ms(1000);
-      uBit.display.clear();*/ 
+      uBit.display.clear();*/
 
-/*uint8_t checksum = 0xff;
+      /*uint8_t checksum = 0xff;
 
 /* Fill header. */
-/*tx_buffer[0] = PREAMBLE;
-tx_buffer[1] = (SEND_PKT | ((ubflags&0x0F) << 4));
-tx_buffer[2] = (nSize & 0x00ff);
-tx_buffer[3] = (nSize >> 8);
+      /* tx_buffer[0] = PREAMBLE;
+      tx_buffer[1] = (SEND_PKT | ((ubflags & 0x0F) << 4));
+      tx_buffer[2] = (nSize & 0x00ff);
+      tx_buffer[3] = (nSize >> 8);
 
-/* Compute checksum. */
-/*for (i=0; i<4; i++)
-checksum ^= tx_buffer[i];
+      /* Compute checksum. */
+      /*for (i = 0; i < 4; i++)
+        checksum ^= tx_buffer[i];
 
+      /* Compute checksum over payload. */
+      /*for (i = 0; i < nSize; i++)
+        checksum ^= payload[i];
 
-/* Compute checksum over payload. */
-/*for (i=0; i<nSize; i++)
-checksum ^= payload[i];
+      /* Add payload */
+      /*for (i = 4; i < nSize + 4; i++)
+      {
+        tx_buffer[i] = payload[i];
+      }
 
-/* Add payload */
-/*for (i=4; i < nSize+4; i++) {
-  tx_buffer[i] = payload[i]; 
-}
-
-tx_buffer[4+nSize] = checksum; 
-  */
-       
-
-      /*Prepare buffer*/
-      tx_buffer[0] = 0x0;
-      tx_buffer[1] = nSize - 2; //This should be the packet length
+      tx_buffer[4 + nSize] = checksum;
       
+
+          /*Prepare buffer*/
+      /*tx_buffer[0] = 0x0;
+      tx_buffer[1] = nSize - 2; //This should be the packet length
+
       /*uBit.display.print(nSize);
       wait_ms(1000);
       uBit.display.clear();
         
       /*Send packet*/
-    
-      radio_send_test_rx(payload, nSize, 37, &uBit); 
-      /* Send ACK. */
-      pLink->sendPacket(SEND_PKT, payload, nSize, PKT_COMMAND | PKT_RESPONSE);
-      //pLink->verbose(B("ftest"));
-      }
-      else
-        pLink->sendPacket(SEND_PKT, NULL, 0, 0);
-    }
-    break;
 
-    {
-      uint8_t status[] = {0x00};
-      if (nSize != 2) /* Error, size does not match. */
+      if (payload[0] == 0x01)
       {
-        status[0] = 0x01;
-        pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
+        radio_send_test_rx(payload, nSize, payload[1]);
+        /* Send ACK. */
+        pLink->sendPacket(SEND_PKT, 0, nSize, PKT_RESPONSE);
+        //pLink->verbose(B("ftest"));
       }
       else
       {
-        /* Enable advertisements sniffing on channel 37. */
-        sniff_adv(37);
+        radio_classic_send_test_rx(payload, nSize, 5);
         /* Send ACK. */
-        pLink->sendAdvertisementResponse(ADVERTISEMENTS_OPCODE_ENABLE_SNIFF, status, 1);
+        pLink->sendPacket(SEND_PKT, 0, nSize, PKT_RESPONSE);
+        //pLink->verbose(B("ftest"));
       }
     }
-    break;
+    else
+      pLink->sendPacket(SEND_PKT, NULL, 0, 0);
+  }
+  break;
 
   /* Other packets. */
   default:
@@ -2542,7 +2608,6 @@ int main()
   int nbSize;
   uint8_t flags;
 
-
   /* Initalize Micro:Bit and serial link. */
 #ifdef YOTTA_CFG_TXPIN
 #ifdef YOTTA_CFG_RXPIN
@@ -2554,10 +2619,11 @@ int main()
   policy = new FilteringPolicy(BLACKLIST);
   /* Init BLE timer. */
   timer_init();
-  /* uBit.init(); /*
+  /* uBit.init(); */
+  radio_init_ubit(&uBit);
 
   /* Reset radio and state. */
-   reset();
+  reset();
   /* Process serial inquiries. */
   while (1)
   {
@@ -2565,14 +2631,14 @@ int main()
     if (pLink->readPacket(&op, packet, &nbSize, &flags))
     {
       // Achtung: Kein Hex!!!
-      /*if(op != 0xF) {
-      wait_ms(1000);
-      uBit.display.print((uint8_t)op);
-      wait_ms(1000);
-      uBit.display.clear(); 
-      } */
+      if (op != 0xF)
+      {
+        /*wait_ms(1000);
+        uBit.display.print((uint8_t)op);
+        wait_ms(1000);
+        uBit.display.clear();*/
+      }
       dispatchMessage(op, packet, nbSize, flags);
- 
     }
     __SEV();
     __WFE();

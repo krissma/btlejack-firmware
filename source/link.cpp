@@ -24,7 +24,7 @@ Link::Link(MicroBit *ubit)
 uint8_t Link::crc(uint8_t *pData, int size, uint8_t prevCrc)
 {
 
-  for (int i=0; i<size; i++)
+  for (int i = 0; i < size; i++)
     prevCrc ^= pData[i];
 
   return prevCrc;
@@ -35,11 +35,9 @@ uint8_t Link::crc(uint8_t *pData, int size)
   return crc(pData, size, 0xff);
 }
 
-
-
 bool Link::readPacket(PT_OPERATION ptOperation, uint8_t *pData, int *pnCount, uint8_t *pubFlags)
 {
-  int nbBytesRead=0, i, pktSize, dataSize;
+  int nbBytesRead = 0, i, pktSize, dataSize;
   uint8_t checksum;
 
   /* Pipe data in if any. */
@@ -55,46 +53,46 @@ bool Link::readPacket(PT_OPERATION ptOperation, uint8_t *pData, int *pnCount, ui
     /* Packet must start with 0xBC. */
     if ((m_payload[0] == 0xBC))
     {
-      if (m_nbRecvBytes>4)
+      if (m_nbRecvBytes > 4)
       {
         /* Parse packet. */
-        pktSize = m_payload[2] | (m_payload[3]<<8);
+        pktSize = m_payload[2] | (m_payload[3] << 8);
         if (m_nbRecvBytes >= (pktSize + 5))
         {
-            /* Check crc. */
-            checksum = crc(m_payload, pktSize + 4);
-            if (checksum == m_payload[pktSize+4])
-            {
-              /* Fill data. */
-              *ptOperation = (T_OPERATION)(m_payload[1] & 0x0F);
-              *pubFlags = (m_payload[1]>>4);
+          /* Check crc. */
+          checksum = crc(m_payload, pktSize + 4);
+          if (checksum == m_payload[pktSize + 4])
+          {
+            /* Fill data. */
+            *ptOperation = (T_OPERATION)(m_payload[1] & 0x0F);
+            *pubFlags = (m_payload[1] >> 4);
 
-              /* Copy data. */
-              if (*pnCount < pktSize)
-                dataSize = *pnCount;
-              else
-                dataSize = pktSize;
-              *pnCount = dataSize;
+            /* Copy data. */
+            if (*pnCount < pktSize)
+              dataSize = *pnCount;
+            else
+              dataSize = pktSize;
+            *pnCount = dataSize;
 
-              for (i=0; i<dataSize; i++)
-                pData[i] = m_payload[i+4];
+            for (i = 0; i < dataSize; i++)
+              pData[i] = m_payload[i + 4];
 
-              /* Chomp packet. */
-              for (i=pktSize+5; i<m_nbRecvBytes; i++)
-                m_payload[i - (pktSize+5)] = m_payload[i];
-              m_nbRecvBytes -= (pktSize + 5);
+            /* Chomp packet. */
+            for (i = pktSize + 5; i < m_nbRecvBytes; i++)
+              m_payload[i - (pktSize + 5)] = m_payload[i];
+            m_nbRecvBytes -= (pktSize + 5);
 
-              /* Success/ */
-              return true;
-            }
+            /* Success/ */
+            return true;
+          }
         }
       }
     }
     else
     {
       /* Chomp one byte. */
-      for (i=1; i<m_nbRecvBytes; i++)
-        m_payload[i-1] = m_payload[i];
+      for (i = 1; i < m_nbRecvBytes; i++)
+        m_payload[i - 1] = m_payload[i];
       m_nbRecvBytes--;
     }
   }
@@ -111,19 +109,19 @@ bool Link::sendPacket(T_OPERATION tOperation, uint8_t *pData, int nCount, uint8_
 
   /* Fill header. */
   header[0] = PREAMBLE;
-  header[1] = (tOperation | ((ubFlags&0x0F) << 4));
+  header[1] = (tOperation | ((ubFlags & 0x0F) << 4));
   header[2] = (nCount & 0x00ff);
   header[3] = (nCount >> 8);
 
   /* Compute checksum. */
-  for (i=0; i<4; i++)
-      checksum ^= header[i];
+  for (i = 0; i < 4; i++)
+    checksum ^= header[i];
 
   /* Send header first. */
   m_serial->send(header, 4, ASYNC);
 
   /* Send payload next. */
-  for (i=0; i<nCount; i++)
+  for (i = 0; i < nCount; i++)
     checksum ^= pData[i];
 
   /* Only send data if we have data to send. */
@@ -140,7 +138,6 @@ bool Link::sendNotification(T_NOTIFICATION_TYPE tNotification, uint8_t *pData, i
 {
   return sendPacket((T_OPERATION)tNotification, pData, nCount, PKT_NOTIFICATION);
 }
-
 
 bool Link::debug(uint8_t *pData)
 {
@@ -166,12 +163,13 @@ bool Link::version(uint8_t major, uint8_t minor)
   return sendPacket(VERSION, buffer, 2, PKT_RESPONSE);
 }
 
-bool Link::sendAdvertisementResponse(uint8_t advOpcode,uint8_t *pData, int nCount) {
-	uint8_t buffer[nCount+1];
-	buffer[0] = advOpcode;
-	for (int i=0;i<nCount;i++) buffer[1+i] = pData[i];
-	return sendPacket(ADVERTISEMENTS,buffer,nCount+1, PKT_COMMAND | PKT_RESPONSE);
-
+bool Link::sendAdvertisementResponse(uint8_t advOpcode, uint8_t *pData, int nCount)
+{
+  uint8_t buffer[nCount + 1];
+  buffer[0] = advOpcode;
+  for (int i = 0; i < nCount; i++)
+    buffer[1 + i] = pData[i];
+  return sendPacket(ADVERTISEMENTS, buffer, nCount + 1, PKT_COMMAND | PKT_RESPONSE);
 }
 
 bool Link::notifyAccessAddress(uint32_t accessAddress, int channel, uint8_t rssi)
@@ -256,7 +254,6 @@ bool Link::notifyHijackStatus(uint8_t status)
   return sendNotification(N_HIJACK_STATUS, buffer, 1);
 }
 
-
 bool Link::notifyBlePacket(uint8_t *pPacket, int nPacketSize)
 {
   /* Send notification. */
@@ -264,19 +261,19 @@ bool Link::notifyBlePacket(uint8_t *pPacket, int nPacketSize)
 }
 
 bool Link::notifyNordicTapBlePacket(
-  uint8_t *pPacket,
-  int nPacketSize,
-  uint8_t channel,
-  uint8_t rssi,
-  uint8_t direction,
-  uint32_t delta,
-  uint16_t eventCounter)
+    uint8_t *pPacket,
+    int nPacketSize,
+    uint8_t channel,
+    uint8_t rssi,
+    uint8_t direction,
+    uint32_t delta,
+    uint16_t eventCounter)
 {
   int i;
 
   /* Format nordic_tap header */
   m_nordic_tap[0] = nPacketSize;
-  m_nordic_tap[1] = (direction == 0)?3:1;
+  m_nordic_tap[1] = (direction == 0) ? 3 : 1;
   m_nordic_tap[2] = channel;
   m_nordic_tap[3] = rssi;
   m_nordic_tap[4] = (eventCounter & 0xFF);
@@ -286,20 +283,19 @@ bool Link::notifyNordicTapBlePacket(
   m_nordic_tap[8] = (delta & 0xff0000) >> 16;
   m_nordic_tap[9] = (delta & 0xff000000) >> 24;
 
-  for (i=0; i<nPacketSize; i++)
-    m_nordic_tap[10+i] = pPacket[i];
+  for (i = 0; i < nPacketSize; i++)
+    m_nordic_tap[10 + i] = pPacket[i];
 
   /* Send notification. */
   return sendNotification(N_PACKET_NORDIC, m_nordic_tap, nPacketSize + NORDIC_TAP_HEADER_LEN);
 }
 
-
 bool Link::notifyAdvertisementPacket(
-  uint8_t *pPacket,
-  int nPacketSize,
-  uint8_t channel,
-  uint8_t crc_ok,
-  uint8_t rssi)
+    uint8_t *pPacket,
+    int nPacketSize,
+    uint8_t channel,
+    uint8_t crc_ok,
+    uint8_t rssi)
 {
   int i;
 
@@ -309,8 +305,8 @@ bool Link::notifyAdvertisementPacket(
   m_nordic_tap[2] = crc_ok;
   m_nordic_tap[3] = rssi;
 
-  for (i=0; i<nPacketSize; i++)
-    m_nordic_tap[4+i] = pPacket[i];
+  for (i = 0; i < nPacketSize; i++)
+    m_nordic_tap[4 + i] = pPacket[i];
 
   /* Send notification. */
   return sendNotification(N_ADV, m_nordic_tap, nPacketSize + ADV_HEADER_LEN);
